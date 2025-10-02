@@ -1,0 +1,92 @@
+version: "2"
+
+pipelines:
+  default:
+    - AnalyzeContent
+    - ExtractSEOKeywords
+    - GenerateMarketingBrief
+    - GenerateArticle
+    - OptimizeSEO
+    - SuggestInternalDocs
+    - FormatContent
+
+# Context passing configuration for better data flow
+context_passing:
+  AnalyzeContent:
+    output: "content_analysis_result"
+    next_input: "content_analysis_result"
+    data_structure: "Dict[str, Any]"
+  ExtractSEOKeywords:
+    input: "content_analysis_result"
+    output: "seo_keywords_result"
+    next_input: "seo_keywords_result"
+    data_structure: "Dict[str, Any]"
+  GenerateMarketingBrief:
+    input: "seo_keywords_result"
+    output: "marketing_brief_result"
+    next_input: "marketing_brief_result"
+    data_structure: "Dict[str, Any]"
+  GenerateArticle:
+    input: "marketing_brief_result"
+    output: "article_result"
+    next_input: "article_result"
+    data_structure: "Dict[str, Any]"
+  OptimizeSEO:
+    input: "article_result"
+    output: "seo_optimized_result"
+    next_input: "seo_optimized_result"
+    data_structure: "Dict[str, Any]"
+  SuggestInternalDocs:
+    input: "seo_optimized_result"
+    output: "internal_docs_result"
+    next_input: "internal_docs_result"
+    data_structure: "Dict[str, Any]"
+  FormatContent:
+    input: "internal_docs_result"
+    output: "final_content_result"
+    data_structure: "Dict[str, Any]"
+
+sub_pipelines:
+  content_analysis:
+    - AnalyzeContentType
+    - ExtractContentMetadata
+    - ValidateContentStructure
+  seo_keywords:
+    - ExtractPrimaryKeywords
+    - ExtractSecondaryKeywords
+    - AnalyzeKeywordDensity
+    - GenerateKeywordSuggestions
+  marketing_brief:
+    - GenerateBriefOutline
+    - DefineTargetAudience
+    - SetContentObjectives
+    - CreateContentStrategy
+  article_generation:
+    - GenerateArticleStructure
+    - WriteArticleContent
+    - AddSupportingElements
+    - ReviewArticleQuality
+  seo_optimization:
+    - OptimizeTitleTags
+    - OptimizeMetaDescriptions
+    - OptimizeHeadings
+    - OptimizeContentStructure
+    - AddInternalLinks
+  internal_docs:
+    - AnalyzeContentGaps
+    - SuggestRelatedDocs
+    - IdentifyCrossReferences
+    - GenerateDocSuggestions
+  content_formatting:
+    - ApplyFormattingRules
+    - OptimizeReadability
+    - AddVisualElements
+    - FinalizeContent
+
+branching:
+  AnalyzeContent:
+    blog_post: content_analysis
+    release_notes: content_analysis
+    transcript: content_analysis
+    email: content_analysis
+    other: content_analysis

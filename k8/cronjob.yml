@@ -1,0 +1,40 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: marketing-project-trigger
+  labels:
+    app: marketing-project
+spec:
+  schedule: "*/5 * * * *"  # Run every 5 minutes
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            app: marketing-project
+            job: trigger
+        spec:
+          containers:
+          - name: trigger
+            image: curlimages/curl:7.85.0
+            args:
+              - -X
+              - POST
+              - -H
+              - "Content-Type: application/json"
+              - -d
+              - '{"lang": "en"}'
+              - http://marketing-project.default.svc.cluster.local/run
+            resources:
+              requests:
+                memory: "64Mi"
+                cpu: "50m"
+              limits:
+                memory: "128Mi"
+                cpu: "100m"
+          restartPolicy: OnFailure
+          backoffLimit: 3
+          

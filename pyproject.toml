@@ -1,0 +1,70 @@
+[tool.poetry]
+name = "marketing-project"
+version = "0.1.0"
+description = "A marketing agentic project"
+authors = ["Ibrahim Abouhashish <your-email@example.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "marketing_project", from = "src"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+any-agent = "0.21.1"
+langchain = "0.3.26"
+openai = "1.90.0"
+jinja2 = "3.1.6"
+pydantic = "2.11.7"
+dateparser = "1.2.1"
+PyYAML = "6.0.2"
+langdetect = "1.0.9"
+google-auth = "2.40.3"
+google-auth-oauthlib = "1.2.2"
+google-api-python-client = "2.173.0"
+ics = "0.7.2"
+python-dotenv = "1.1.0"
+fastapi = {extras = ["standard"], version = "0.115.13"}
+apscheduler = "3.11.0"
+langchain-community = "0.3.26"
+langchain-openai = "0.3.24"
+beautifulsoup4 = "4.13.4"
+pytesseract = "^0.3.10"
+Pillow = "^10.0.0"
+requests = "^2.25.0"
+click = "^8.0.0"
+uvicorn = "^0.23.1"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "8.4.1"
+pytest-asyncio = "^0.21.0"
+black = "^23.0.0"
+isort = "^5.12.0"
+flake8 = "^6.0.0"
+mypy = "^1.0.0"
+
+[tool.poetry.scripts]
+marketing-project = "marketing_project.main:cli"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+asyncio_mode = "auto"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.isort]
+profile = "black"
+multi_line_output = 3
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
