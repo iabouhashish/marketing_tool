@@ -21,7 +21,7 @@ commonLabels:
   environment: production
 
 images:
-  - name: ghcr.io/your-org/marketing-project
+  - name: ghcr.io/your-username/arthur-marketing-generator
     newTag: latest
 
 replicas:

@@ -1,5 +1,6 @@
 import json
 import os
+import logging
 from datetime import datetime
 from marketing_project.agents.transcripts_agent import get_transcripts_agent
 from marketing_project.agents.blog_agent import get_blog_agent
@@ -17,9 +18,13 @@ from marketing_project.core.models import (
     AppContext, TranscriptContext, BlogPostContext, ReleaseNotesContext
 )
 
+
 # For HTTP serving (optional)
 from fastapi import FastAPI, BackgroundTasks
 import uvicorn
+
+# Initialize logger
+logger = logging.getLogger('marketing_project.runner')
 
 async def run_marketing_project_pipeline(prompts_dir, lang):
     """
@@ -46,14 +51,62 @@ async def run_marketing_project_pipeline(prompts_dir, lang):
     # - Web scraping
     # - Database queries
     
-    # TODO: Implement content source integration
-    # For now, the pipeline is ready to process content when provided
-    print("Marketing Project pipeline initialized and ready for content processing")
-    print("Available agents:")
-    print("- Transcripts Agent: For podcasts, videos, meetings")
-    print("- Blog Agent: For articles, tutorials, written content") 
-    print("- Release Notes Agent: For software releases, updates")
-    print("- Orchestrator Agent: Routes content to appropriate agents")
+    # Content source integration
+    from marketing_project.services.content_source_factory import ContentSourceManager
+    from marketing_project.services.content_source_config_loader import ContentSourceConfigLoader
+    
+    # Initialize content source manager
+    content_manager = ContentSourceManager()
+    
+    # Load and add content sources from configuration
+    config_loader = ContentSourceConfigLoader()
+    source_configs = config_loader.create_source_configs()
+    
+    for config in source_configs:
+        await content_manager.add_source_from_config(config)
+    
+    # Fetch content from all sources as ContentContext models
+    content_models = await content_manager.fetch_content_as_models()
+    
+    # Process content through the pipeline
+    processed_content = []
+    for content_context in content_models:
+        try:
+            # Process through orchestrator (which routes to appropriate agents)
+            app_context = {
+                "content": content_context,
+                "labels": {},
+                "content_type": content_context.__class__.__name__.replace('Context', '').lower()
+            }
+            
+            # Let the orchestrator handle routing to the appropriate agent
+            processed = await orchestrator_agent.run_async(app_context)
+            processed_content.append(processed)
+            
+        except Exception as e:
+            logger.error(f"Error processing content item: {e}")
+            continue
+    
+    logger.info("Marketing Project pipeline initialized and ready for content processing")
+    logger.info("Architecture:")
+    logger.info("- Content Sources: Fetch content from various sources (files, APIs, databases, etc.)")
+    logger.info("- Orchestrator Agent: Central routing point that directs content to specialized agents")
+    logger.info("  - Transcripts Agent: For podcasts, videos, meetings")
+    logger.info("  - Blog Agent: For articles, tutorials, written content") 
+    logger.info("  - Release Notes Agent: For software releases, updates")
+    logger.info(f"Content sources: {len(content_manager.sources)} configured")
+    logger.info(f"Content processed: {len(processed_content)} items")
+    
+    return {
+        "agents": {
+            "transcripts_agent": transcripts_agent,
+            "blog_agent": blog_agent,
+            "releasenotes_agent": releasenotes_agent,
+            "orchestrator_agent": orchestrator_agent
+        },
+        "content_manager": content_manager,
+        "processed_content": processed_content
+    }
 
 async def run_content_analysis_pipeline(prompts_dir, lang):
     """
@@ -84,28 +137,179 @@ async def run_content_analysis_pipeline(prompts_dir, lang):
         design_kit_agent=design_kit_agent
     )
     
-    print("Content Analysis Pipeline initialized and ready for processing")
-    print("Available agents:")
-    print("- SEO Keywords Agent: Extract and analyze SEO keywords")
-    print("- Marketing Brief Agent: Generate marketing briefs and strategy")
-    print("- Article Generation Agent: Create high-quality articles")
-    print("- SEO Optimization Agent: Apply comprehensive SEO optimizations")
-    print("- Internal Docs Agent: Suggest internal documents and cross-references")
-    print("- Content Formatting Agent: Format and finalize content")
-    print("- Design Kit Agent: Apply professional design templates and visual enhancements")
-    print("- Content Pipeline Agent: Orchestrates the complete 8-step workflow")
+    # Content source integration for content analysis pipeline
+    from marketing_project.services.content_source_factory import ContentSourceManager
+    from marketing_project.services.content_source_config_loader import ContentSourceConfigLoader
     
-    return content_pipeline_agent
+    # Initialize content source manager
+    content_manager = ContentSourceManager()
+    
+    # Load and add content sources from configuration
+    config_loader = ContentSourceConfigLoader()
+    source_configs = config_loader.create_source_configs()
+    
+    for config in source_configs:
+        await content_manager.add_source_from_config(config)
+    
+    # Fetch content from all sources as ContentContext models
+    content_models = await content_manager.fetch_content_as_models()
+    
+    # Process content through the content analysis pipeline
+    processed_content = []
+    for content_context in content_models:
+        try:
+            # Process through content pipeline orchestrator (which manages the 8-step workflow)
+            app_context = {
+                "content": content_context,
+                "labels": {},
+                "content_type": content_context.__class__.__name__.replace('Context', '').lower()
+            }
+            
+            # Let the content pipeline orchestrator handle the complete workflow
+            processed = await content_pipeline_agent.run_async(app_context)
+            processed_content.append(processed)
+            
+        except Exception as e:
+            logger.error(f"Error processing content item in analysis pipeline: {e}")
+            continue
+    
+    logger.info("Content Analysis Pipeline initialized and ready for processing")
+    logger.info("Architecture:")
+    logger.info("- Content Sources: Fetch content from various sources (files, APIs, databases, etc.)")
+    logger.info("- Content Pipeline Orchestrator: Manages the complete 8-step workflow")
+    logger.info("  - SEO Keywords Agent: Extract and analyze SEO keywords")
+    logger.info("  - Marketing Brief Agent: Generate marketing briefs and strategy")
+    logger.info("  - Article Generation Agent: Create high-quality articles")
+    logger.info("  - SEO Optimization Agent: Apply comprehensive SEO optimizations")
+    logger.info("  - Internal Docs Agent: Suggest internal documents and cross-references")
+    logger.info("  - Content Formatting Agent: Format and finalize content")
+    logger.info("  - Design Kit Agent: Apply professional design templates and visual enhancements")
+    logger.info(f"Content sources: {len(content_manager.sources)} configured")
+    logger.info(f"Content processed: {len(processed_content)} items")
+    
+    return {
+        "content_pipeline_agent": content_pipeline_agent,
+        "content_manager": content_manager,
+        "processed_content": processed_content
+    }
     
 
 # Optional: Async FastAPI server for MCP/K8s deployment
 def build_fastapi_app(prompts_dir, lang):
     app = FastAPI(title="Marketing Project Server")
+    
+    # Global content manager for webhook endpoints
+    content_manager = None
+
+    @app.on_event("startup")
+    async def startup_event():
+        nonlocal content_manager
+        from marketing_project.services.content_source_factory import ContentSourceManager
+        from marketing_project.services.content_source_config_loader import ContentSourceConfigLoader
+        
+        content_manager = ContentSourceManager()
+        config_loader = ContentSourceConfigLoader()
+        source_configs = config_loader.create_source_configs()
+        
+        for config in source_configs:
+            await content_manager.add_source_from_config(config)
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        nonlocal content_manager
+        if content_manager:
+            await content_manager.cleanup()
 
     @app.post("/run")
     async def run_pipeline_endpoint(background: BackgroundTasks):
         background.add_task(run_marketing_project_pipeline, prompts_dir, lang)
         return {"status": "accepted"}
+    
+    @app.post("/webhook/{source_name}")
+    async def webhook_endpoint(source_name: str, request: dict):
+        """Receive webhook content for a specific source."""
+        nonlocal content_manager
+        if not content_manager:
+            return {"error": "Content manager not initialized"}
+        
+        # Find webhook source
+        webhook_source = None
+        for name, source in content_manager.sources.items():
+            if (hasattr(source, 'config') and 
+                source.config.source_type.value == 'webhook' and 
+                name == source_name):
+                webhook_source = source
+                break
+        
+        if not webhook_source:
+            return {"error": f"Webhook source '{source_name}' not found"}
+        
+        # Process webhook
+        signature = request.headers.get("X-Signature", request.headers.get("X-Hub-Signature"))
+        success = await webhook_source.receive_webhook(request.json, signature)
+        
+        return {"status": "received" if success else "rejected"}
+    
+    @app.get("/content-sources")
+    async def list_content_sources():
+        """List all configured content sources."""
+        nonlocal content_manager
+        if not content_manager:
+            return {"error": "Content manager not initialized"}
+        
+        sources = []
+        for name, source in content_manager.sources.items():
+            status = source.get_status()
+            sources.append({
+                "name": name,
+                "type": status["type"],
+                "status": status["status"],
+                "enabled": status["enabled"]
+            })
+        
+        return {"sources": sources}
+    
+    @app.get("/content-sources/{source_name}/status")
+    async def get_source_status(source_name: str):
+        """Get status of a specific content source."""
+        nonlocal content_manager
+        if not content_manager:
+            return {"error": "Content manager not initialized"}
+        
+        if source_name not in content_manager.sources:
+            return {"error": f"Source '{source_name}' not found"}
+        
+        source = content_manager.sources[source_name]
+        is_healthy = await source.health_check()
+        status = source.get_status()
+        
+        return {
+            "name": source_name,
+            "healthy": is_healthy,
+            "status": status
+        }
+    
+    @app.post("/content-sources/{source_name}/fetch")
+    async def fetch_source_content(source_name: str, limit: int = 10):
+        """Fetch content from a specific source."""
+        nonlocal content_manager
+        if not content_manager:
+            return {"error": "Content manager not initialized"}
+        
+        if source_name not in content_manager.sources:
+            return {"error": f"Source '{source_name}' not found"}
+        
+        source = content_manager.sources[source_name]
+        result = await source.fetch_content(limit)
+        
+        return {
+            "source_name": result.source_name,
+            "success": result.success,
+            "total_count": result.total_count,
+            "content_items": result.content_items,
+            "error_message": result.error_message
+        }
+    
     return app
 
 async def run_marketing_project_server(host, port, prompts_dir, lang):

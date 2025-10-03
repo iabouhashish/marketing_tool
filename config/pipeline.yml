@@ -103,3 +103,57 @@ branching:
     transcript: content_analysis
     email: content_analysis
     other: content_analysis
+
+# Content source configuration
+content_sources:
+  enabled: true
+  default_sources:
+    - name: "local_content"
+      type: "file"
+      enabled: true
+      config:
+        file_paths: ["content/", "data/"]
+        file_patterns: ["content/**/*.md", "content/**/*.json", "data/**/*.txt"]
+        watch_directory: true
+        supported_formats: [".md", ".json", ".txt", ".yaml", ".yml"]
+    
+    - name: "content_api"
+      type: "api"
+      enabled: false
+      config:
+        base_url: "${CONTENT_API_URL}"
+        endpoints: ["/content", "/posts", "/articles"]
+        auth_type: "api_key"
+        auth_config:
+          key_name: "X-API-Key"
+          key_value: "${CONTENT_API_KEY}"
+    
+    - name: "content_database"
+      type: "database"
+      enabled: false
+      config:
+        connection_string: "${CONTENT_DATABASE_URL}"
+        query: "SELECT * FROM content"
+        table_name: "content"
+    
+    - name: "web_content"
+      type: "web_scraping"
+      enabled: false
+      config:
+        urls: "${SCRAPE_URLS}"
+        selectors:
+          title: "h1, .title, .headline"
+          content: "article, .content, .post-content"
+          snippet: ".excerpt, .summary"
+        max_pages: 10
+        delay_between_requests: 1.0
+
+  polling:
+    enabled: true
+    interval: 300  # seconds
+    batch_size: 10
+  
+  caching:
+    enabled: true
+    ttl: 300  # seconds
+    max_size: 1000  # items

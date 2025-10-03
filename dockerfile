@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
 
 # set working directory
 WORKDIR /app
@@ -15,8 +15,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 # copy application code
 COPY src/ ./src/
 COPY config/ ./config/
+COPY prompts/ ./prompts/
 COPY .env.example .env
 
+# install the package in development mode
+RUN pip install -e .
+
+# create logs directory
+RUN mkdir -p logs
+
 # default entrypoint: run or serve based on ENV
-ENV ENTRYPOINT_MODE=run
-ENTRYPOINT ["sh", "-c", "if [ \"$ENTRYPOINT_MODE\" = \"serve\" ]; then mail-maestro serve; else mail-maestro run; fi"]
+ENV ENTRYPOINT_MODE=serve
+ENTRYPOINT ["sh", "-c", "if [ \"$ENTRYPOINT_MODE\" = \"serve\" ]; then marketing-project serve; else marketing-project run; fi"]
