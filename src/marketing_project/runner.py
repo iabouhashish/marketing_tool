@@ -12,6 +12,7 @@ from marketing_project.agents.article_generation_agent import get_article_genera
 from marketing_project.agents.seo_optimization_agent import get_seo_optimization_agent
 from marketing_project.agents.internal_docs_agent import get_internal_docs_agent
 from marketing_project.agents.content_formatting_agent import get_content_formatting_agent
+from marketing_project.agents.design_kit_agent import get_design_kit_agent
 from marketing_project.core.models import (
     AppContext, TranscriptContext, BlogPostContext, ReleaseNotesContext
 )
@@ -69,6 +70,7 @@ async def run_content_analysis_pipeline(prompts_dir, lang):
     seo_optimization_agent = await get_seo_optimization_agent(prompts_dir, lang)
     internal_docs_agent = await get_internal_docs_agent(prompts_dir, lang)
     content_formatting_agent = await get_content_formatting_agent(prompts_dir, lang)
+    design_kit_agent = await get_design_kit_agent(prompts_dir, lang)
     
     # Create the main content pipeline orchestrator
     content_pipeline_agent = await get_content_pipeline_agent(
@@ -78,7 +80,8 @@ async def run_content_analysis_pipeline(prompts_dir, lang):
         article_generation_agent=article_generation_agent,
         seo_optimization_agent=seo_optimization_agent,
         internal_docs_agent=internal_docs_agent,
-        content_formatting_agent=content_formatting_agent
+        content_formatting_agent=content_formatting_agent,
+        design_kit_agent=design_kit_agent
     )
     
     print("Content Analysis Pipeline initialized and ready for processing")
@@ -89,7 +92,8 @@ async def run_content_analysis_pipeline(prompts_dir, lang):
     print("- SEO Optimization Agent: Apply comprehensive SEO optimizations")
     print("- Internal Docs Agent: Suggest internal documents and cross-references")
     print("- Content Formatting Agent: Format and finalize content")
-    print("- Content Pipeline Agent: Orchestrates the complete 7-step workflow")
+    print("- Design Kit Agent: Apply professional design templates and visual enhancements")
+    print("- Content Pipeline Agent: Orchestrates the complete 8-step workflow")
     
     return content_pipeline_agent
     

@@ -1,9 +1,9 @@
 """
 Content Pipeline Orchestrator Agent for Marketing Project.
 
-This agent serves as the main orchestrator for the new 7-step content pipeline:
+This agent serves as the main orchestrator for the new 8-step content pipeline:
 1. AnalyzeContent → 2. ExtractSEOKeywords → 3. GenerateMarketingBrief → 
-4. GenerateArticle → 5. OptimizeSEO → 6. SuggestInternalDocs → 7. FormatContent
+4. GenerateArticle → 5. OptimizeSEO → 6. SuggestInternalDocs → 7. FormatContent → 8. ApplyDesignKit
 
 The orchestrator handles the complete content analysis and generation workflow.
 """
@@ -27,11 +27,12 @@ async def get_content_pipeline_agent(
     article_generation_agent=None,
     seo_optimization_agent=None,
     internal_docs_agent=None,
-    content_formatting_agent=None
+    content_formatting_agent=None,
+    design_kit_agent=None
 ):
     """
     Creates and returns a Content Pipeline Orchestrator agent that manages
-    the complete 7-step content analysis and generation workflow.
+    the complete 8-step content analysis and generation workflow.
 
     Args:
         prompts_dir (str): Directory containing agent prompt templates
@@ -43,6 +44,7 @@ async def get_content_pipeline_agent(
         seo_optimization_agent (AnyAgent): Agent for SEO optimization
         internal_docs_agent (AnyAgent): Agent for internal docs suggestions
         content_formatting_agent (AnyAgent): Agent for content formatting
+        design_kit_agent (AnyAgent): Agent for design template and visual enhancements
 
     Returns:
         AnyAgent: Configured content pipeline orchestrator agent
@@ -83,6 +85,9 @@ async def get_content_pipeline_agent(
     if content_formatting_agent:
         tools.append(content_formatting_agent.run_async)
         logger.info("Added content_formatting_agent to pipeline orchestrator tools")
+    if design_kit_agent:
+        tools.append(design_kit_agent.run_async)
+        logger.info("Added design_kit_agent to pipeline orchestrator tools")
     
     return await AnyAgent.create_async(
         "langchain",

@@ -9,6 +9,7 @@ pipelines:
     - OptimizeSEO
     - SuggestInternalDocs
     - FormatContent
+    - ApplyDesignKit
 
 # Context passing configuration for better data flow
 context_passing:
@@ -43,6 +44,11 @@ context_passing:
     data_structure: "Dict[str, Any]"
   FormatContent:
     input: "internal_docs_result"
+    output: "formatted_content_result"
+    next_input: "formatted_content_result"
+    data_structure: "Dict[str, Any]"
+  ApplyDesignKit:
+    input: "formatted_content_result"
     output: "final_content_result"
     data_structure: "Dict[str, Any]"
 
@@ -82,6 +88,13 @@ sub_pipelines:
     - OptimizeReadability
     - AddVisualElements
     - FinalizeContent
+  design_kit:
+    - SelectDesignTemplate
+    - ApplyBrandGuidelines
+    - GenerateVisualComponents
+    - OptimizeResponsiveLayout
+    - CreateVisualAssets
+    - ValidateDesignCompliance
 
 branching:
   AnalyzeContent:
