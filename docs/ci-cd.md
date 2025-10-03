@@ -4,8 +4,8 @@ This document describes the CI/CD pipeline setup for the Marketing Project.
 
 ## Overview
 
-The project uses GitHub Actions with a comprehensive pipeline that includes:
-- Automated testing (unit and integration)
+The project uses GitHub Actions with a streamlined pipeline that includes:
+- Automated testing (unit and integration) on Python 3.12
 - Code quality checks (linting, formatting, type checking)
 - Security scanning (vulnerability and SAST checks)
 - Docker image building and publishing

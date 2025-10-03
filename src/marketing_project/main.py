@@ -53,12 +53,6 @@ async def _run_server_async(host, port, lang, prompts_dir):
         prompts_dir = os.path.abspath(os.path.join(base, "prompts", os.getenv("TEMPLATE_VERSION", "v1")))
     await run_marketing_project_server(host=host, port=port, prompts_dir=prompts_dir, lang=lang)
 
-@cli.command("test")
-def run_tests():
-    """Run the test suite (pytest)"""
-    import subprocess
-    subprocess.run(["pytest"], check=True)
-
 @cli.command("content-sources")
 @click.option('--list', 'list_sources', is_flag=True, help="List all configured content sources")
 @click.option('--status', 'check_status', is_flag=True, help="Check status of all content sources")

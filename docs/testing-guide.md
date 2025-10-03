@@ -38,20 +38,6 @@ For most PRs, use the **PR Checks** workflow which runs:
 - Load testing with Locust
 - Performance regression detection
 
-### 4. **Python Matrix** (`.github/workflows/python-matrix.yml`)
-**Best for**: Python version compatibility
-- Tests on Python 3.11, 3.12, 3.13
-- Ensures compatibility across versions
-
-### 5. **OS Matrix** (`.github/workflows/os-matrix.yml`)
-**Best for**: Cross-platform compatibility
-- Tests on Ubuntu, Windows, macOS
-- Ensures cross-platform support
-
-### 6. **Dependency Matrix** (`.github/workflows/dependency-matrix.yml`)
-**Best for**: Dependency changes
-- Tests with minimal, latest, and pinned dependencies
-- Ensures compatibility with different versions
 
 ## 🛠️ **Local Testing**
 
@@ -108,17 +94,6 @@ docker run --rm marketing-project:latest --help
 - Use **PR Checks** + **Performance Tests**
 - Ensure no performance regressions
 
-### **For Python Version Changes**
-- Use **Python Matrix**
-- Ensure compatibility across versions
-
-### **For Cross-Platform Changes**
-- Use **OS Matrix**
-- Ensure works on all platforms
-
-### **For Dependency Updates**
-- Use **Dependency Matrix**
-- Ensure compatibility with different versions
 
 ## ⚡ **Fast Testing Tips**
 
@@ -293,5 +268,4 @@ pytest --cov=src/marketing_project --cov-report=html -v -s
 - **Quick PRs**: Use PR Checks workflow
 - **Feature PRs**: Use PR Checks + CI Pipeline
 - **Performance PRs**: Use PR Checks + Performance Tests
-- **Compatibility PRs**: Use appropriate matrix workflows
 - **Local Development**: Use `make test`, `make lint`, `make format`
