@@ -36,11 +36,11 @@ def analyze_content_type(content: ContentContext) -> str:
         str: Agent name to route to
     """
     if isinstance(content, TranscriptContext):
-        return "transcript_agent"
+        return "transcripts_agent"
     elif isinstance(content, BlogPostContext):
         return "blog_agent"
     elif isinstance(content, ReleaseNotesContext):
-        return "release_agent"
+        return "releasenotes_agent"
     elif isinstance(content, EmailContext):
         return "email_agent"
     else:

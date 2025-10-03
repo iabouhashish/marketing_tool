@@ -469,7 +469,7 @@ def format_code_fenced(content: str) -> str:
 def format_links_markdown(content: str) -> str:
     """Ensure links are in markdown format."""
     # Convert plain URLs to markdown links
-    url_pattern = r'https?://[^\s]+'
+    url_pattern = r'(https?://[^\s]+)'
     content = re.sub(url_pattern, r'[\1](\1)', content)
     return content
 

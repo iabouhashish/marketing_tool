@@ -67,6 +67,10 @@ def clean_text(raw_text: str) -> str:
 
     # Collapse extra whitespace
     text = ' '.join(text.split())
+    
+    # Fix spaces before punctuation
+    text = re.sub(r'\s+([.!?])', r'\1', text)
+    
     return text
 
 def parse_transcript(raw_content: str, content_type: str = "podcast") -> Dict[str, Any]:
@@ -80,15 +84,31 @@ def parse_transcript(raw_content: str, content_type: str = "podcast") -> Dict[st
     Returns:
         Dictionary with parsed transcript data
     """
-    cleaned_content = clean_text(raw_content)
+    # For transcripts, we need to preserve line breaks for speaker detection
+    # Use BeautifulSoup to convert HTML to plain text if needed, but preserve line breaks
+    soup = BeautifulSoup(raw_content, 'html.parser')
+    text = soup.get_text(separator='\n')
+    
+    # Normalize unicode and clean up
+    text = unicodedata.normalize('NFKC', text)
+    text = re.sub(r'[^\x20-\x7E\u00A0-\uFFFF\n]+', '', text)
+    text = text.replace('\u00A0', ' ')
+    
+    # Clean up whitespace but preserve line structure
+    lines = []
+    for line in text.split('\n'):
+        cleaned_line = ' '.join(line.split())
+        if cleaned_line:
+            lines.append(cleaned_line)
+    
+    cleaned_content = '\n'.join(lines)
     
     # Extract speakers (look for patterns like "Speaker 1:", "John:", etc.)
-    speaker_pattern = r'^([A-Za-z\s]+):\s*(.*)$'
+    speaker_pattern = r'([A-Za-z0-9\s]+):\s*(.*)'
     speakers = set()
-    lines = cleaned_content.split('\n')
     
     for line in lines:
-        match = re.match(speaker_pattern, line.strip())
+        match = re.search(speaker_pattern, line.strip())
         if match:
             speaker = match.group(1).strip()
             if len(speaker) < 50:  # Reasonable speaker name length
@@ -127,7 +147,24 @@ def parse_blog_post(raw_content: str, metadata: Optional[Dict] = None) -> Dict[s
     Returns:
         Dictionary with parsed blog post data
     """
-    cleaned_content = clean_text(raw_content)
+    # For blog posts, we need to preserve line breaks for heading detection
+    # Use BeautifulSoup to convert HTML to plain text if needed, but preserve line breaks
+    soup = BeautifulSoup(raw_content, 'html.parser')
+    text = soup.get_text(separator='\n')
+    
+    # Normalize unicode and clean up
+    text = unicodedata.normalize('NFKC', text)
+    text = re.sub(r'[^\x20-\x7E\u00A0-\uFFFF\n]+', '', text)
+    text = text.replace('\u00A0', ' ')
+    
+    # Clean up whitespace but preserve line structure
+    lines = []
+    for line in text.split('\n'):
+        cleaned_line = ' '.join(line.split())
+        if cleaned_line:
+            lines.append(cleaned_line)
+    
+    cleaned_content = '\n'.join(lines)
     
     # Extract title if not provided in metadata
     title = ""
@@ -135,7 +172,6 @@ def parse_blog_post(raw_content: str, metadata: Optional[Dict] = None) -> Dict[s
         title = metadata["title"]
     else:
         # Try to extract title from content (first heading or first line)
-        lines = cleaned_content.split('\n')
         for line in lines[:5]:  # Check first 5 lines
             if len(line.strip()) > 10 and len(line.strip()) < 200:
                 title = line.strip()
@@ -144,7 +180,7 @@ def parse_blog_post(raw_content: str, metadata: Optional[Dict] = None) -> Dict[s
     # Extract headings (look for patterns like # Heading, ## Heading, etc.)
     heading_pattern = r'^#{1,6}\s+(.+)$'
     headings = []
-    for line in cleaned_content.split('\n'):
+    for line in lines:
         match = re.match(heading_pattern, line.strip())
         if match:
             headings.append(match.group(1).strip())
@@ -183,7 +219,24 @@ def parse_release_notes(raw_content: str, version: Optional[str] = None) -> Dict
     Returns:
         Dictionary with parsed release notes data
     """
-    cleaned_content = clean_text(raw_content)
+    # For release notes, we need to preserve line breaks for section detection
+    # Use BeautifulSoup to convert HTML to plain text if needed, but preserve line breaks
+    soup = BeautifulSoup(raw_content, 'html.parser')
+    text = soup.get_text(separator='\n')
+    
+    # Normalize unicode and clean up
+    text = unicodedata.normalize('NFKC', text)
+    text = re.sub(r'[^\x20-\x7E\u00A0-\uFFFF\n]+', '', text)
+    text = text.replace('\u00A0', ' ')
+    
+    # Clean up whitespace but preserve line structure
+    lines = []
+    for line in text.split('\n'):
+        cleaned_line = ' '.join(line.split())
+        if cleaned_line:
+            lines.append(cleaned_line)
+    
+    cleaned_content = '\n'.join(lines)
     
     # Extract version if not provided
     if not version:
@@ -198,7 +251,6 @@ def parse_release_notes(raw_content: str, version: Optional[str] = None) -> Dict
     bug_fixes = []
     breaking_changes = []
     
-    lines = cleaned_content.split('\n')
     current_section = None
     
     for line in lines:
@@ -206,14 +258,14 @@ def parse_release_notes(raw_content: str, version: Optional[str] = None) -> Dict
         if not line:
             continue
             
-        # Detect section headers
-        if re.match(r'^(features?|new|added)', line, re.IGNORECASE):
+        # Detect section headers (handle markdown format like ## New Features)
+        if re.match(r'^#+\s*(features?|new|added)', line, re.IGNORECASE):
             current_section = 'features'
-        elif re.match(r'^(fixes?|bugs?|issues?)', line, re.IGNORECASE):
+        elif re.match(r'^#+\s*(fixes?|bugs?|issues?)', line, re.IGNORECASE):
             current_section = 'bug_fixes'
-        elif re.match(r'^(breaking|breaking changes?)', line, re.IGNORECASE):
+        elif re.match(r'^#+\s*(breaking|breaking changes?)', line, re.IGNORECASE):
             current_section = 'breaking'
-        elif re.match(r'^(changes?|updates?)', line, re.IGNORECASE):
+        elif re.match(r'^#+\s*(changes?|updates?)', line, re.IGNORECASE):
             current_section = 'changes'
         elif line.startswith('-') or line.startswith('*') or line.startswith('•'):
             # Extract bullet point

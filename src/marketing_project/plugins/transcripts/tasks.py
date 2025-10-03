@@ -146,16 +146,16 @@ def route_transcript_processing(app_context: AppContext, available_agents: Dict[
     transcript = app_context.content
     processing_type = analyze_transcript_type(transcript)
     
-    # Map processing types to agent names
+    # Map processing types to agent names - use the actual transcripts_agent for all types
     agent_mapping = {
-        "podcast": "podcast_agent",
-        "video": "video_agent", 
-        "meeting": "meeting_agent",
-        "interview": "interview_agent",
-        "general": "general_transcript_agent"
+        "podcast": "transcripts_agent",
+        "video": "transcripts_agent", 
+        "meeting": "transcripts_agent",
+        "interview": "transcripts_agent",
+        "general": "transcripts_agent"
     }
     
-    agent_name = agent_mapping.get(processing_type, "general_transcript_agent")
+    agent_name = agent_mapping.get(processing_type, "transcripts_agent")
     
     if agent_name in available_agents and available_agents[agent_name]:
         logger.info(f"Routing {processing_type} transcript to {agent_name}")

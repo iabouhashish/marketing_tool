@@ -34,16 +34,59 @@ def analyze_release_type(release_notes: ReleaseNotesContext) -> str:
     breaking_count = len(release_notes.breaking_changes)
     features_count = len(release_notes.features)
     
+    # Handle empty or None version
+    if not version or version.strip() == "":
+        # Fallback analysis based on content
+        if breaking_count > 0:
+            return "major"
+        elif features_count > 0:
+            return "minor"
+        elif changes_count > 0:
+            return "patch"
+        else:
+            return "patch"  # Default to patch for empty versions
+    
     # Analyze version number (semantic versioning)
     try:
-        major, minor, patch = map(int, version.split('.')[:3])
+        # Handle complex version formats (e.g., "1.2.3-beta.1" -> "1.2.3")
+        version_clean = version.split('-')[0].split('+')[0]
+        version_parts = version_clean.split('.')
         
-        if major > 0 and (breaking_count > 0 or features_count > 5):
+        # Handle incomplete versions (e.g., "1.0" -> [1, 0, 0])
+        while len(version_parts) < 3:
+            version_parts.append('0')
+        
+        major, minor, patch = map(int, version_parts[:3])
+        
+        # First check for breaking changes (always major)
+        if breaking_count > 0:
             return "major"
-        elif minor > 0 and features_count > 0:
-            return "minor"
-        elif patch > 0 and changes_count > 0:
-            return "patch"
+        # Then check for features (minor if minor version > 0, otherwise minor for incomplete versions)
+        elif features_count > 0:
+            if minor > 0:
+                return "minor"
+            elif major > 0 and minor == 0 and patch == 0:
+                # Incomplete version like "1.0" with features should be minor
+                return "minor"
+            else:
+                return "major"
+        # Then check for changes (patch if patch version > 0, otherwise minor)
+        elif changes_count > 0:
+            if patch > 0:
+                return "patch"
+            else:
+                return "minor"
+        # Check for hotfix (patch version > 0 with no changes, features, or breaking changes)
+        elif patch > 0 and changes_count == 0 and features_count == 0 and breaking_count == 0:
+            return "hotfix"
+        # Check for general release (major.minor.0 with no changes, features, or breaking changes)
+        elif major > 0 and minor >= 0 and patch == 0 and changes_count == 0 and features_count == 0 and breaking_count == 0:
+            return "general"
+        # Default cases
+        elif major == 0 and minor == 0 and patch == 0:
+            return "patch"  # Default to patch for 0.0.0
+        elif changes_count == 0 and features_count == 0 and breaking_count == 0:
+            return "patch"  # Default to patch for no changes
         else:
             return "hotfix"
     except (ValueError, IndexError):
@@ -52,8 +95,10 @@ def analyze_release_type(release_notes: ReleaseNotesContext) -> str:
             return "major"
         elif features_count > 0:
             return "minor"
-        else:
+        elif changes_count > 0:
             return "patch"
+        else:
+            return "patch"  # Default to patch
 
 def extract_release_metadata(release_notes: ReleaseNotesContext) -> Dict[str, Any]:
     """
@@ -73,7 +118,7 @@ def extract_release_metadata(release_notes: ReleaseNotesContext) -> Dict[str, An
         "id": release_notes.id,
         "title": release_notes.title,
         "version": release_notes.version or parsed_data.get("version", ""),
-        "release_date": release_notes.release_date or parsed_data.get("release_date"),
+        "release_date": release_notes.release_date,
         "changes_count": len(release_notes.changes or parsed_data.get("changes", [])),
         "breaking_changes_count": len(release_notes.breaking_changes or parsed_data.get("breaking_changes", [])),
         "features_count": len(release_notes.features or parsed_data.get("features", [])),
@@ -165,16 +210,16 @@ def route_release_processing(app_context: AppContext, available_agents: Dict[str
     release_notes = app_context.content
     processing_type = analyze_release_type(release_notes)
     
-    # Map processing types to agent names
+    # Map processing types to agent names - use the actual releasenotes_agent for all types
     agent_mapping = {
-        "major": "major_release_agent",
-        "minor": "minor_release_agent",
-        "patch": "patch_release_agent",
-        "hotfix": "hotfix_agent",
-        "general": "general_release_agent"
+        "major": "releasenotes_agent",
+        "minor": "releasenotes_agent",
+        "patch": "releasenotes_agent",
+        "hotfix": "releasenotes_agent",
+        "general": "releasenotes_agent"
     }
     
-    agent_name = agent_mapping.get(processing_type, "general_release_agent")
+    agent_name = agent_mapping.get(processing_type, "releasenotes_agent")
     
     if agent_name in available_agents and available_agents[agent_name]:
         logger.info(f"Routing {processing_type} release to {agent_name}")

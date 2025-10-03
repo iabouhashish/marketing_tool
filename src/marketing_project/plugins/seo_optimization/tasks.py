@@ -11,6 +11,7 @@ Functions:
     optimize_content_structure: Optimizes overall content structure
     add_internal_links: Adds strategic internal links
     analyze_seo_performance: Analyzes SEO performance metrics
+    calculate_seo_score: Calculates overall SEO score for content
 """
 
 import logging
@@ -489,7 +490,7 @@ def analyze_seo_performance(article: Dict[str, Any], keywords: List[Dict[str, An
     
     # Calculate overall score
     scores = [
-        title_analysis['seo_score'],
+        title_analysis['data']['seo_score'] if 'data' in title_analysis else title_analysis['seo_score'],
         meta_analysis['seo_score'],
         heading_analysis['seo_score'],
         content_analysis['seo_score'],
@@ -499,7 +500,7 @@ def analyze_seo_performance(article: Dict[str, Any], keywords: List[Dict[str, An
     
     # Compile recommendations
     all_recommendations = (
-        title_analysis['recommendations'] +
+        title_analysis['data']['recommendations'] if 'data' in title_analysis else title_analysis['recommendations'] +
         meta_analysis['recommendations'] +
         heading_analysis['recommendations'] +
         content_analysis['recommendations'] +
@@ -592,3 +593,326 @@ def analyze_technical_seo(article: Dict[str, Any]) -> Dict[str, Any]:
         technical['recommendations'].append('Use lists for better readability')
     
     return technical
+
+def calculate_seo_score(article: Union[Dict[str, Any], ContentContext], keywords: List[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """
+    Calculates an overall SEO score for the article based on multiple factors.
+    
+    Args:
+        article: Article dictionary with content or ContentContext
+        keywords: List of SEO keywords for scoring
+        
+    Returns:
+        Dict[str, Any]: Standardized task result with SEO score and breakdown
+    """
+    try:
+        # Handle both dict and ContentContext inputs
+        if isinstance(article, ContentContext):
+            article_data = {
+                'title': article.title,
+                'content': article.content,
+                'meta_description': getattr(article, 'snippet', ''),
+                'url': getattr(article, 'source_url', '')
+            }
+        else:
+            article_data = article
+        
+        # Initialize scoring components
+        score_breakdown = {
+            'title_optimization': 0,
+            'meta_description': 0,
+            'content_quality': 0,
+            'keyword_optimization': 0,
+            'technical_seo': 0,
+            'content_structure': 0,
+            'readability': 0,
+            'internal_linking': 0
+        }
+        
+        total_score = 0
+        max_possible_score = 0
+        
+        # 1. Title Optimization (20 points)
+        title = article_data.get('title', '')
+        title_score = 0
+        title_issues = []
+        
+        if title:
+            title_length = len(title)
+            if 30 <= title_length <= 60:
+                title_score += 15  # Optimal length
+            elif 20 <= title_length <= 70:
+                title_score += 10  # Acceptable length
+            else:
+                title_issues.append(f"Title length ({title_length}) should be 30-60 characters")
+            
+            # Check for keyword in title
+            if keywords and any(kw['keyword'].lower() in title.lower() for kw in keywords[:3]):
+                title_score += 5
+            elif keywords:
+                title_issues.append("Primary keyword not found in title")
+        else:
+            title_issues.append("Missing title")
+        
+        score_breakdown['title_optimization'] = title_score
+        total_score += title_score
+        max_possible_score += 20
+        
+        # 2. Meta Description (15 points)
+        meta_desc = article_data.get('meta_description', '')
+        meta_score = 0
+        meta_issues = []
+        
+        if meta_desc:
+            meta_length = len(meta_desc)
+            if 120 <= meta_length <= 160:
+                meta_score += 15  # Optimal length
+            elif 100 <= meta_length <= 180:
+                meta_score += 10  # Acceptable length
+            else:
+                meta_issues.append(f"Meta description length ({meta_length}) should be 120-160 characters")
+            
+            # Check for keyword in meta description
+            if keywords and any(kw['keyword'].lower() in meta_desc.lower() for kw in keywords[:3]):
+                meta_score += 0  # Already included in length score
+            elif keywords:
+                meta_issues.append("Primary keyword not found in meta description")
+        else:
+            meta_issues.append("Missing meta description")
+        
+        score_breakdown['meta_description'] = meta_score
+        total_score += meta_score
+        max_possible_score += 15
+        
+        # 3. Content Quality (25 points)
+        content = article_data.get('content', '')
+        content_score = 0
+        content_issues = []
+        
+        if content:
+            word_count = len(content.split())
+            
+            # Word count scoring
+            if 1000 <= word_count <= 3000:
+                content_score += 15  # Optimal length
+            elif 500 <= word_count <= 5000:
+                content_score += 10  # Acceptable length
+            else:
+                content_issues.append(f"Content length ({word_count} words) should be 1000-3000 words")
+            
+            # Check for headings
+            heading_count = len(re.findall(r'<h[1-6]', content)) + len(re.findall(r'^#+', content, re.MULTILINE))
+            if heading_count >= 3:
+                content_score += 5
+            else:
+                content_issues.append("Add more headings for better structure")
+            
+            # Check for images
+            image_count = len(re.findall(r'<img', content)) + len(re.findall(r'!\[', content))
+            if image_count >= 1:
+                content_score += 5
+            else:
+                content_issues.append("Add relevant images")
+        else:
+            content_issues.append("Missing content")
+        
+        score_breakdown['content_quality'] = content_score
+        total_score += content_score
+        max_possible_score += 25
+        
+        # 4. Keyword Optimization (20 points)
+        keyword_score = 0
+        keyword_issues = []
+        
+        if keywords and content:
+            primary_keywords = [kw['keyword'] for kw in keywords[:3]]
+            keyword_density = {}
+            
+            for keyword in primary_keywords:
+                keyword_lower = keyword.lower()
+                content_lower = content.lower()
+                word_count = len(content.split())
+                keyword_count = content_lower.count(keyword_lower)
+                density = (keyword_count / word_count) * 100 if word_count > 0 else 0
+                keyword_density[keyword] = density
+                
+                if 1 <= density <= 3:
+                    keyword_score += 6  # Optimal density
+                elif 0.5 <= density <= 5:
+                    keyword_score += 4  # Acceptable density
+                else:
+                    keyword_issues.append(f"Keyword '{keyword}' density ({density:.1f}%) should be 1-3%")
+        else:
+            keyword_issues.append("No keywords provided for optimization")
+        
+        score_breakdown['keyword_optimization'] = keyword_score
+        total_score += keyword_score
+        max_possible_score += 20
+        
+        # 5. Technical SEO (10 points)
+        technical_score = 0
+        technical_issues = []
+        
+        # Check for H1 tag
+        if re.search(r'<h1[^>]*>', content) or re.search(r'^# ', content, re.MULTILINE):
+            technical_score += 3
+        else:
+            technical_issues.append("Missing H1 heading")
+        
+        # Check for internal links
+        internal_links = len(re.findall(r'href=["\'](?!https?://)', content))
+        if internal_links >= 2:
+            technical_score += 3
+        elif internal_links >= 1:
+            technical_score += 2
+        else:
+            technical_issues.append("Add internal links")
+        
+        # Check for external links
+        external_links = len(re.findall(r'href=["\']https?://', content))
+        if external_links >= 1:
+            technical_score += 2
+        else:
+            technical_issues.append("Add external links for credibility")
+        
+        # Check for alt text on images
+        images_with_alt = len(re.findall(r'<img[^>]*alt=["\'][^"\']+["\']', content))
+        if images_with_alt >= 1:
+            technical_score += 2
+        else:
+            technical_issues.append("Add alt text to images")
+        
+        score_breakdown['technical_seo'] = technical_score
+        total_score += technical_score
+        max_possible_score += 10
+        
+        # 6. Content Structure (5 points)
+        structure_score = 0
+        structure_issues = []
+        
+        # Check for lists
+        list_count = len(re.findall(r'<[uo]l', content)) + len(re.findall(r'^\s*[-*+]\s', content, re.MULTILINE))
+        if list_count >= 1:
+            structure_score += 3
+        else:
+            structure_issues.append("Add lists for better readability")
+        
+        # Check for paragraphs
+        paragraph_count = len(re.findall(r'<p', content)) + len(re.findall(r'\n\s*\n', content))
+        if paragraph_count >= 3:
+            structure_score += 2
+        else:
+            structure_issues.append("Add more paragraphs for better structure")
+        
+        score_breakdown['content_structure'] = structure_score
+        total_score += structure_score
+        max_possible_score += 5
+        
+        # 7. Readability (3 points)
+        readability_score = 0
+        readability_issues = []
+        
+        if content:
+            sentences = re.split(r'[.!?]+', content)
+            avg_sentence_length = sum(len(s.split()) for s in sentences) / len(sentences) if sentences else 0
+            
+            if avg_sentence_length <= 20:
+                readability_score += 3
+            elif avg_sentence_length <= 25:
+                readability_score += 2
+            else:
+                readability_issues.append("Reduce average sentence length for better readability")
+        
+        score_breakdown['readability'] = readability_score
+        total_score += readability_score
+        max_possible_score += 3
+        
+        # 8. Internal Linking (2 points)
+        linking_score = 0
+        linking_issues = []
+        
+        if internal_links >= 3:
+            linking_score += 2
+        elif internal_links >= 1:
+            linking_score += 1
+        else:
+            linking_issues.append("Add more internal links")
+        
+        score_breakdown['internal_linking'] = linking_score
+        total_score += linking_score
+        max_possible_score += 2
+        
+        # Calculate overall score percentage
+        overall_score = (total_score / max_possible_score * 100) if max_possible_score > 0 else 0
+        
+        # Determine SEO grade
+        if overall_score >= 90:
+            grade = 'A'
+        elif overall_score >= 80:
+            grade = 'B'
+        elif overall_score >= 70:
+            grade = 'C'
+        elif overall_score >= 60:
+            grade = 'D'
+        else:
+            grade = 'F'
+        
+        # Compile all issues
+        all_issues = []
+        all_issues.extend(title_issues)
+        all_issues.extend(meta_issues)
+        all_issues.extend(content_issues)
+        all_issues.extend(keyword_issues)
+        all_issues.extend(technical_issues)
+        all_issues.extend(structure_issues)
+        all_issues.extend(readability_issues)
+        all_issues.extend(linking_issues)
+        
+        # Generate recommendations
+        recommendations = []
+        if overall_score < 70:
+            recommendations.append("Focus on improving title and meta description optimization")
+        if score_breakdown['content_quality'] < 15:
+            recommendations.append("Improve content quality and length")
+        if score_breakdown['keyword_optimization'] < 15:
+            recommendations.append("Better integrate target keywords throughout content")
+        if score_breakdown['technical_seo'] < 7:
+            recommendations.append("Address technical SEO issues")
+        
+        seo_analysis = {
+            'overall_seo_score': round(overall_score, 1),
+            'seo_grade': grade,
+            'score_breakdown': score_breakdown,
+            'total_possible_score': max_possible_score,
+            'actual_score': total_score,
+            'issues': all_issues,
+            'recommendations': recommendations,
+            'keyword_density': keyword_density if keywords else {},
+            'content_metrics': {
+                'word_count': len(content.split()) if content else 0,
+                'heading_count': len(re.findall(r'<h[1-6]', content)) + len(re.findall(r'^#+', content, re.MULTILINE)),
+                'image_count': len(re.findall(r'<img', content)) + len(re.findall(r'!\[', content)),
+                'internal_links': internal_links,
+                'external_links': external_links
+            }
+        }
+        
+        return create_standard_task_result(
+            success=True,
+            data=seo_analysis,
+            task_name='calculate_seo_score',
+            metadata={
+                'overall_score': overall_score,
+                'grade': grade,
+                'total_issues': len(all_issues),
+                'recommendations_count': len(recommendations)
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in calculate_seo_score: {str(e)}")
+        return create_standard_task_result(
+            success=False,
+            error=f"SEO score calculation failed: {str(e)}",
+            task_name='calculate_seo_score'
+        )

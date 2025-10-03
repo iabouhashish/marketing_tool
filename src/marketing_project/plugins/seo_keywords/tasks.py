@@ -11,6 +11,8 @@ Functions:
     generate_keyword_suggestions: Generates additional keyword suggestions
     optimize_keyword_placement: Optimizes keyword placement in content
     calculate_keyword_scores: Calculates keyword relevance and difficulty scores
+    extract_keywords_with_kwx: Extracts keywords using kwx library with advanced NLP
+    extract_keywords_advanced: Combines multiple extraction methods for better results
 """
 
 import logging
@@ -22,6 +24,12 @@ from marketing_project.core.utils import (
     ensure_content_context, create_standard_task_result,
     validate_content_for_processing, extract_content_metadata_for_pipeline
 )
+
+try:
+    from kwx.model import extract_kws
+    KWX_AVAILABLE = True
+except ImportError:
+    KWX_AVAILABLE = False
 
 logger = logging.getLogger("marketing_project.plugins.seo_keywords")
 
@@ -39,6 +47,20 @@ def extract_primary_keywords(content: Union[ContentContext, Dict[str, Any]], max
     try:
         # Ensure content is a ContentContext object
         content_obj = ensure_content_context(content)
+        
+        # Handle empty content gracefully (but not completely invalid content)
+        if not content_obj.content and content_obj.title:
+            # Content is empty but title exists - return empty results
+            return create_standard_task_result(
+                success=True,
+                data={
+                    'primary_keywords': [],
+                    'total_keywords_found': 0,
+                    'filtered_words_count': 0
+                },
+                task_name='extract_primary_keywords',
+                metadata=extract_content_metadata_for_pipeline(content_obj)
+            )
         
         # Validate content
         validation = validate_content_for_processing(content_obj)
@@ -328,6 +350,17 @@ def generate_keyword_suggestions(content: Union[ContentContext, Dict[str, Any]],
                         'relevance_score': 0.8,
                         'suggestion_reason': f'Industry-specific keyword for {industry}'
                     })
+        elif industry and industry.lower() not in industry_keywords:
+            # For unknown industry, generate general suggestions based on content
+            general_keywords = ['strategy', 'solution', 'approach', 'method', 'technique', 'process', 'system', 'platform', 'tool', 'service']
+            for keyword in general_keywords:
+                if keyword not in text:
+                    suggestions.append({
+                        'keyword': keyword,
+                        'type': 'general',
+                        'relevance_score': 0.5,
+                        'suggestion_reason': f'General keyword suggestion for {industry}'
+                    })
         
         # Audience-specific keyword suggestions
         audience_keywords = {
@@ -355,7 +388,7 @@ def generate_keyword_suggestions(content: Union[ContentContext, Dict[str, Any]],
         # Find common phrases that could be keywords
         phrase_counts = Counter(bigrams + trigrams)
         for phrase, count in phrase_counts.most_common(5):
-            if count > 1 and len(phrase.split()) >= 2:
+            if count >= 1 and len(phrase.split()) >= 2:
                 suggestions.append({
                     'keyword': phrase,
                     'type': 'long_tail',
@@ -551,4 +584,274 @@ def calculate_keyword_scores(keywords: List[Dict[str, Any]], content: Union[Cont
             success=False,
             error=f"Keyword scoring failed: {str(e)}",
             task_name='calculate_keyword_scores'
+        )
+
+def extract_keywords_with_kwx(content: Union[ContentContext, Dict[str, Any]], 
+                             max_keywords: int = 10, 
+                             method: str = "frequency",
+                             ngram_range: Tuple[int, int] = (1, 3),
+                             language: str = "english") -> Dict[str, Any]:
+    """
+    Extracts keywords using the kwx library with advanced NLP techniques.
+    
+    Args:
+        content: Content context object or dictionary
+        max_keywords: Maximum number of keywords to extract
+        method: Extraction method ('frequency', 'tfidf', 'yake', 'textrank', 'rake')
+        ngram_range: Range of n-grams to consider (min, max)
+        language: Language for processing ('english', 'spanish', 'french', etc.)
+        
+    Returns:
+        Dict[str, Any]: Standardized task result with kwx-extracted keywords
+    """
+    try:
+        if not KWX_AVAILABLE:
+            return create_standard_task_result(
+                success=False,
+                error="kwx library not available. Please install with: pip install kwx",
+                task_name='extract_keywords_with_kwx'
+            )
+        
+        # Ensure content is a ContentContext object
+        content_obj = ensure_content_context(content)
+        
+        # Handle empty content gracefully
+        if not content_obj.content and content_obj.title:
+            return create_standard_task_result(
+                success=True,
+                data={
+                    'keywords': [],
+                    'total_keywords_found': 0,
+                    'method': method,
+                    'ngram_range': ngram_range,
+                    'language': language
+                },
+                task_name='extract_keywords_with_kwx',
+                metadata=extract_content_metadata_for_pipeline(content_obj)
+            )
+        
+        # Validate content
+        validation = validate_content_for_processing(content_obj)
+        if not validation['is_valid']:
+            return create_standard_task_result(
+                success=False,
+                error=f"Content validation failed: {', '.join(validation['issues'])}",
+                task_name='extract_keywords_with_kwx'
+            )
+        
+        # Prepare text for processing
+        text = f"{content_obj.title} {content_obj.content}".strip()
+        
+        if not text:
+            return create_standard_task_result(
+                success=False,
+                error="No text content available for keyword extraction",
+                task_name='extract_keywords_with_kwx'
+            )
+        
+        # Map method names to kwx method names
+        method_mapping = {
+            "frequency": "frequency",
+            "tfidf": "TFIDF",
+            "yake": "yake",
+            "textrank": "textrank",
+            "rake": "rake",
+            "lda": "lda",
+            "bert": "BERT"
+        }
+        
+        kwx_method = method_mapping.get(method, "frequency")
+        
+        # Extract keywords using kwx
+        try:
+            keywords_result = extract_kws(
+                method=kwx_method,
+                text_corpus=[text],
+                input_language=language,
+                num_keywords=max_keywords,
+                return_topics=False,
+                prompt_remove_words=False
+            )
+            
+            # Convert kwx result to our format
+            if isinstance(keywords_result, list) and len(keywords_result) > 0:
+                # kwx returns a list of lists, take the first one
+                keywords_list = keywords_result[0] if isinstance(keywords_result[0], list) else keywords_result
+                # Convert to (keyword, score) tuples with dummy scores
+                keywords = [(kw, 1.0) for kw in keywords_list[:max_keywords]]
+            else:
+                keywords = []
+        except Exception as e:
+            logger.error(f"KWX extraction failed with method {kwx_method}: {str(e)}")
+            return create_standard_task_result(
+                success=False,
+                error=f"KWX keyword extraction failed: {str(e)}",
+                task_name='extract_keywords_with_kwx'
+            )
+        
+        # Format keywords for consistency with other functions
+        formatted_keywords = []
+        for i, (keyword, score) in enumerate(keywords):
+            formatted_keywords.append({
+                'keyword': keyword,
+                'score': float(score) if isinstance(score, (int, float)) else 0.0,
+                'rank': i + 1,
+                'method': method,
+                'ngram_length': len(keyword.split()),
+                'in_title': keyword.lower() in (content_obj.title or "").lower()
+            })
+        
+        return create_standard_task_result(
+            success=True,
+            data={
+                'keywords': formatted_keywords,
+                'total_keywords_found': len(formatted_keywords),
+                'method': method,
+                'ngram_range': ngram_range,
+                'language': language,
+                'extraction_library': 'kwx'
+            },
+            task_name='extract_keywords_with_kwx',
+            metadata=extract_content_metadata_for_pipeline(content_obj)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in extract_keywords_with_kwx: {str(e)}")
+        return create_standard_task_result(
+            success=False,
+            error=f"KWX keyword extraction failed: {str(e)}",
+            task_name='extract_keywords_with_kwx'
+        )
+
+def extract_keywords_advanced(content: Union[ContentContext, Dict[str, Any]], 
+                            max_keywords: int = 10,
+                            methods: List[str] = None,
+                            combine_results: bool = True) -> Dict[str, Any]:
+    """
+    Extracts keywords using multiple methods and optionally combines results.
+    
+    Args:
+        content: Content context object or dictionary
+        max_keywords: Maximum number of keywords to extract per method
+        methods: List of methods to use ['frequency', 'tfidf', 'yake', 'textrank', 'rake']
+        combine_results: Whether to combine and deduplicate results from all methods
+        
+    Returns:
+        Dict[str, Any]: Standardized task result with advanced keyword extraction
+    """
+    try:
+        if not KWX_AVAILABLE:
+            return create_standard_task_result(
+                success=False,
+                error="kwx library not available. Please install with: pip install kwx",
+                task_name='extract_keywords_advanced'
+            )
+        
+        # Default methods if none specified
+        if methods is None:
+            methods = ['frequency', 'tfidf', 'yake']
+        
+        # Ensure content is a ContentContext object
+        content_obj = ensure_content_context(content)
+        
+        # Handle empty content gracefully
+        if not content_obj.content and content_obj.title:
+            return create_standard_task_result(
+                success=True,
+                data={
+                    'keywords': [],
+                    'methods_used': methods,
+                    'combined_results': combine_results,
+                    'total_keywords_found': 0
+                },
+                task_name='extract_keywords_advanced',
+                metadata=extract_content_metadata_for_pipeline(content_obj)
+            )
+        
+        # Validate content
+        validation = validate_content_for_processing(content_obj)
+        if not validation['is_valid']:
+            return create_standard_task_result(
+                success=False,
+                error=f"Content validation failed: {', '.join(validation['issues'])}",
+                task_name='extract_keywords_advanced'
+            )
+        
+        all_keywords = {}
+        method_results = {}
+        
+        # Extract keywords using each method
+        for method in methods:
+            try:
+                result = extract_keywords_with_kwx(content_obj, max_keywords, method)
+                if result['success']:
+                    method_results[method] = result['data']['keywords']
+                    # Add to combined results
+                    for kw in result['data']['keywords']:
+                        keyword = kw['keyword']
+                        if keyword not in all_keywords:
+                            all_keywords[keyword] = {
+                                'keyword': keyword,
+                                'scores': {},
+                                'methods': [],
+                                'total_score': 0.0,
+                                'ngram_length': kw['ngram_length'],
+                                'in_title': kw['in_title']
+                            }
+                        all_keywords[keyword]['scores'][method] = kw['score']
+                        all_keywords[keyword]['methods'].append(method)
+                else:
+                    logger.warning(f"Method {method} failed: {result['error']}")
+            except Exception as e:
+                logger.warning(f"Method {method} failed with exception: {str(e)}")
+        
+        if not all_keywords:
+            return create_standard_task_result(
+                success=True,
+                data={
+                    'keywords': [],
+                    'methods_used': methods,
+                    'method_results': method_results,
+                    'combined_results': combine_results,
+                    'total_keywords_found': 0,
+                    'extraction_library': 'kwx'
+                },
+                task_name='extract_keywords_advanced',
+                metadata=extract_content_metadata_for_pipeline(content_obj)
+            )
+        
+        # Calculate combined scores if requested
+        if combine_results:
+            for keyword_data in all_keywords.values():
+                scores = list(keyword_data['scores'].values())
+                keyword_data['total_score'] = sum(scores) / len(scores)  # Average score
+                keyword_data['confidence'] = len(keyword_data['methods']) / len(methods)  # Method coverage
+        
+        # Sort by total score and return top keywords
+        sorted_keywords = sorted(
+            all_keywords.values(), 
+            key=lambda x: x['total_score'], 
+            reverse=True
+        )[:max_keywords]
+        
+        return create_standard_task_result(
+            success=True,
+            data={
+                'keywords': sorted_keywords,
+                'methods_used': methods,
+                'method_results': method_results,
+                'combined_results': combine_results,
+                'total_keywords_found': len(sorted_keywords),
+                'extraction_library': 'kwx'
+            },
+            task_name='extract_keywords_advanced',
+            metadata=extract_content_metadata_for_pipeline(content_obj)
+        )
+        
+    except Exception as e:
+        logger.error(f"Error in extract_keywords_advanced: {str(e)}")
+        return create_standard_task_result(
+            success=False,
+            error=f"Advanced keyword extraction failed: {str(e)}",
+            task_name='extract_keywords_advanced'
         )

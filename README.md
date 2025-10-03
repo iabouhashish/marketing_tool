@@ -8,48 +8,38 @@
 
 ## 🚀 Quick Start
 
-### Using Poetry (Recommended)
+### Using pip (Recommended)
 
 ```bash
 # Clone
 git clone https://github.com/your-org/marketing-project.git
 cd marketing-project
 
-# Install dependencies with Poetry
-poetry install
+# Create virtual environment (recommended)
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+# For development (optional)
+pip install -r requirements-dev.txt
+
+# Install the project in development mode
+pip install -e .
 
 # Set up environment
 cp env.example .env
 # Fill .env with your secrets (especially OPENAI_API_KEY)
 
 # Run the marketing project
-poetry run marketing-project run
-
-# Start the server
-poetry run marketing-project serve
-
-# Run tests
-poetry run pytest
-```
-
-### Using pip (Alternative)
-
-```bash
-# Clone
-git clone https://github.com/your-org/marketing-project.git
-cd marketing-project
-
-# Install
-git checkout main
-cp env.example .env
-# Fill .env with your secrets
-pip install -r requirements.txt
-
-# Run
 python -m src.marketing_project.main run
 
-# Serve
+# Start the server
 python -m src.marketing_project.main serve
+
+# Run tests
+pytest
 ```
 
 ## 🧩 Agents & Extensions
@@ -82,33 +72,31 @@ This project follows this architecture:
 - **Multi-locale support** - Internationalization ready
 - **Comprehensive testing** - pytest with async support
 - **Docker & K8s ready** - Production deployment ready
-- **Modern Python tooling** - Poetry for dependency management
+- **Modern Python tooling** - pip for dependency management
 
-## 📦 Poetry Commands
+## 📦 Dependency Management
 
 ```bash
 # Install dependencies
-poetry install
+pip install -r requirements.txt
+
+# Install development dependencies
+pip install -r requirements-dev.txt
 
 # Add a new dependency
-poetry add package-name
-
-# Add a development dependency
-poetry add --group dev package-name
+pip install package-name
+# Then update requirements.txt manually
 
 # Update dependencies
-poetry update
+pip install --upgrade -r requirements.txt
 
-# Run commands in the Poetry environment
-poetry run python script.py
-poetry run marketing-project --help
+# Show installed packages
+pip list
 
-# Show dependency tree
-poetry show --tree
-
-# Export requirements.txt (if needed)
-poetry export -f requirements.txt --output requirements.txt
+# Freeze current environment
+pip freeze > requirements-current.txt
 ```
+
 
 ## 🚀 Kubernetes Deployment
 

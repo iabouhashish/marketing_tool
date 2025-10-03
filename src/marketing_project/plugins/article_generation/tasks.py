@@ -63,6 +63,7 @@ def generate_article_structure(marketing_brief: Union[Dict[str, Any], ContentCon
         
         # Generate title based on brief and keywords
         title = brief_data.get('title', 'Untitled Article')
+        primary_keyword = ''
         if seo_keywords and len(seo_keywords) > 0:
             primary_keyword = seo_keywords[0]['keyword']
             if primary_keyword.lower() not in title.lower():
@@ -75,7 +76,7 @@ def generate_article_structure(marketing_brief: Union[Dict[str, Any], ContentCon
         if executive_summary:
             meta_desc = executive_summary[:150] + '...' if len(executive_summary) > 150 else executive_summary
         else:
-            meta_desc = f"Learn about {primary_keyword if seo_keywords else 'this topic'} with our comprehensive guide."
+            meta_desc = f"Learn about {primary_keyword if primary_keyword else 'this topic'} with our comprehensive guide."
         
         structure['meta_description'] = meta_desc
         
@@ -124,10 +125,18 @@ def generate_article_structure(marketing_brief: Union[Dict[str, Any], ContentCon
         }
         
         # Set SEO optimization targets
-        if seo_keywords:
+        if seo_keywords and len(seo_keywords) > 0:
             structure['seo_optimization'] = {
-                'primary_keyword': seo_keywords[0]['keyword'] if seo_keywords else '',
+                'primary_keyword': seo_keywords[0]['keyword'],
                 'secondary_keywords': [kw['keyword'] for kw in seo_keywords[1:4]] if len(seo_keywords) > 1 else [],
+                'keyword_density_target': '1-3%',
+                'title_optimization': 'Include primary keyword in title',
+                'heading_optimization': 'Include keywords in H2 and H3 tags'
+            }
+        else:
+            structure['seo_optimization'] = {
+                'primary_keyword': '',
+                'secondary_keywords': [],
                 'keyword_density_target': '1-3%',
                 'title_optimization': 'Include primary keyword in title',
                 'heading_optimization': 'Include keywords in H2 and H3 tags'
@@ -150,11 +159,13 @@ def generate_article_structure(marketing_brief: Union[Dict[str, Any], ContentCon
         
     except Exception as e:
         logger.error(f"Error in generate_article_structure: {str(e)}")
-        return create_standard_task_result(
-            success=False,
-            error=f"Article structure generation failed: {str(e)}",
-            task_name='generate_article_structure'
-        )
+        # Return a simple dict instead of calling create_standard_task_result
+        # to avoid potential issues if that function is also failing
+        return {
+            'success': False,
+            'error': f"Article structure generation failed: {str(e)}",
+            'task_name': 'generate_article_structure'
+        }
 
 def write_article_content(structure: Dict[str, Any], source_content: ContentContext = None) -> Dict[str, Any]:
     """

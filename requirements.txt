@@ -1,4 +1,5 @@
-any-agent==0.21.1
+# Core dependencies
+any-agent[langchain]==0.21.1
 langchain==0.3.26
 openai==1.90.0
 jinja2==3.1.6
@@ -11,8 +12,6 @@ google-auth-oauthlib==1.2.2
 google-api-python-client==2.173.0
 ics==0.7.2
 python-dotenv==1.1.0
-pytest==8.4.1
-setuptools==80.9.0
 fastapi[standard]==0.115.13
 apscheduler==3.11.0
 langchain-community==0.3.26
@@ -21,6 +20,6 @@ beautifulsoup4==4.13.4
 pytesseract>=0.3.10
 Pillow>=10.0.0
 requests>=2.25.0
-any-agent[langchain]
 click>=8.0.0
-uvicorn>=0.20.0
+uvicorn>=0.23.1
+kwx==1.0.2
