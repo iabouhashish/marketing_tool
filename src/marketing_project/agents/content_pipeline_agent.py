@@ -2,25 +2,28 @@
 Content Pipeline Orchestrator Agent for Marketing Project.
 
 This agent serves as the main orchestrator for the new 8-step content pipeline:
-1. AnalyzeContent → 2. ExtractSEOKeywords → 3. GenerateMarketingBrief → 
+1. AnalyzeContent → 2. ExtractSEOKeywords → 3. GenerateMarketingBrief →
 4. GenerateArticle → 5. OptimizeSEO → 6. SuggestInternalDocs → 7. FormatContent → 8. ApplyDesignKit
 
 The orchestrator handles the complete content analysis and generation workflow.
 """
 
-from any_agent import AnyAgent, AgentConfig
-from marketing_project.logging_config import LangChainLoggingCallbackHandler
-from marketing_project.core.prompts import load_agent_prompt
-from marketing_project.plugins.content_analysis import tasks as content_analysis_tasks
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
+
+from any_agent import AgentConfig, AnyAgent
+
+from marketing_project.core.prompts import load_agent_prompt
+from marketing_project.logging_config import LangChainLoggingCallbackHandler
+from marketing_project.plugins.content_analysis import tasks as content_analysis_tasks
 
 logger = logging.getLogger("marketing_project.agents")
 handler = LangChainLoggingCallbackHandler()
 
+
 async def get_content_pipeline_agent(
-    prompts_dir, 
-    lang="en", 
+    prompts_dir,
+    lang="en",
     content_analysis_agent=None,
     seo_keywords_agent=None,
     marketing_brief_agent=None,
@@ -28,7 +31,7 @@ async def get_content_pipeline_agent(
     seo_optimization_agent=None,
     internal_docs_agent=None,
     content_formatting_agent=None,
-    design_kit_agent=None
+    design_kit_agent=None,
 ):
     """
     Creates and returns a Content Pipeline Orchestrator agent that manages
@@ -49,20 +52,24 @@ async def get_content_pipeline_agent(
     Returns:
         AnyAgent: Configured content pipeline orchestrator agent
     """
-    instructions, description = load_agent_prompt(prompts_dir, "content_pipeline_agent", lang)
-    
+    instructions, description = load_agent_prompt(
+        prompts_dir, "content_pipeline_agent", lang
+    )
+
     # Build tools list from all pipeline agents
     tools = []
-    
+
     # Add content analysis tools (enhanced existing plugin)
-    tools.extend([
-        content_analysis_tasks.analyze_content_for_pipeline,
-        content_analysis_tasks.analyze_content_type,
-        content_analysis_tasks.extract_content_metadata,
-        content_analysis_tasks.validate_content_structure,
-        content_analysis_tasks.route_to_appropriate_agent
-    ])
-    
+    tools.extend(
+        [
+            content_analysis_tasks.analyze_content_for_pipeline,
+            content_analysis_tasks.analyze_content_type,
+            content_analysis_tasks.extract_content_metadata,
+            content_analysis_tasks.validate_content_structure,
+            content_analysis_tasks.route_to_appropriate_agent,
+        ]
+    )
+
     # Add agent tools if available
     if content_analysis_agent:
         tools.append(content_analysis_agent.run_async)
@@ -88,7 +95,7 @@ async def get_content_pipeline_agent(
     if design_kit_agent:
         tools.append(design_kit_agent.run_async)
         logger.info("Added design_kit_agent to pipeline orchestrator tools")
-    
+
     return await AnyAgent.create_async(
         "langchain",
         AgentConfig(

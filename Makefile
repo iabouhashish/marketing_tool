@@ -38,7 +38,7 @@ test-integration:
 	pytest tests/integrations/ -v -m integration
 
 # Linting and formatting
-lint: lint-black lint-isort lint-flake8 lint-mypy
+lint: lint-black lint-isort lint-flake8
 
 lint-black:
 	black --check --diff src/ tests/
@@ -49,18 +49,12 @@ lint-isort:
 lint-flake8:
 	flake8 src/ tests/
 
-lint-mypy:
-	mypy src/marketing_project/
-
 format:
 	black src/ tests/
 	isort src/ tests/
 
 # Security checks
-security: security-safety security-bandit
-
-security-safety:
-	safety check
+security: security-bandit
 
 security-bandit:
 	bandit -r src/

@@ -5,15 +5,18 @@ This agent handles design template selection, brand guidelines application,
 visual component generation, responsive layout optimization, and design compliance validation.
 """
 
-from any_agent import AnyAgent, AgentConfig
-from marketing_project.logging_config import LangChainLoggingCallbackHandler
-from marketing_project.core.prompts import load_agent_prompt
-from marketing_project.plugins.design_kit import tasks as design_kit_tasks
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
+
+from any_agent import AgentConfig, AnyAgent
+
+from marketing_project.core.prompts import load_agent_prompt
+from marketing_project.logging_config import LangChainLoggingCallbackHandler
+from marketing_project.plugins.design_kit import tasks as design_kit_tasks
 
 logger = logging.getLogger("marketing_project.agents")
 handler = LangChainLoggingCallbackHandler()
+
 
 async def get_design_kit_agent(prompts_dir, lang="en"):
     """
@@ -27,7 +30,7 @@ async def get_design_kit_agent(prompts_dir, lang="en"):
         AnyAgent: Configured design kit agent
     """
     instructions, description = load_agent_prompt(prompts_dir, "design_kit_agent", lang)
-    
+
     # Add design kit-specific tools
     tools = [
         design_kit_tasks.select_design_template,
@@ -36,9 +39,9 @@ async def get_design_kit_agent(prompts_dir, lang="en"):
         design_kit_tasks.optimize_responsive_layout,
         design_kit_tasks.create_visual_assets,
         design_kit_tasks.validate_design_compliance,
-        design_kit_tasks.apply_design_kit_enhancement
+        design_kit_tasks.apply_design_kit_enhancement,
     ]
-    
+
     return await AnyAgent.create_async(
         "langchain",
         AgentConfig(

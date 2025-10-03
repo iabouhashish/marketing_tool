@@ -12,9 +12,11 @@ Classes:
     AppContext: Represents the application context, including the content, labels, and extracted information.
 """
 
-from pydantic import BaseModel, Field
-from typing import List, Dict, Union, Optional
 from datetime import datetime
+from typing import Dict, List, Optional, Union
+
+from pydantic import BaseModel, Field
+
 
 class BaseContentContext(BaseModel):
     """
@@ -29,6 +31,7 @@ class BaseContentContext(BaseModel):
         source_url (Optional[str]): URL where the content was found.
         metadata (Dict[str, str]): Additional metadata about the content.
     """
+
     id: str
     title: str
     content: str
@@ -36,6 +39,7 @@ class BaseContentContext(BaseModel):
     created_at: Optional[datetime] = None
     source_url: Optional[str] = None
     metadata: Dict[str, str] = Field(default_factory=dict)
+
 
 class TranscriptContext(BaseContentContext):
     """
@@ -47,10 +51,12 @@ class TranscriptContext(BaseContentContext):
         transcript_type (str): Type of transcript (podcast, video, meeting, etc.).
         timestamps (Optional[Dict[str, str]]): Timestamp markers in the transcript.
     """
+
     speakers: List[str] = Field(default_factory=list)
     duration: Optional[str] = None
     transcript_type: str = "podcast"  # podcast, video, meeting, interview, etc.
     timestamps: Optional[Dict[str, str]] = None
+
 
 class BlogPostContext(BaseContentContext):
     """
@@ -63,11 +69,13 @@ class BlogPostContext(BaseContentContext):
         word_count (Optional[int]): Approximate word count of the content.
         reading_time (Optional[str]): Estimated reading time.
     """
+
     author: Optional[str] = None
     tags: List[str] = Field(default_factory=list)
     category: Optional[str] = None
     word_count: Optional[int] = None
     reading_time: Optional[str] = None
+
 
 class ReleaseNotesContext(BaseContentContext):
     """
@@ -81,6 +89,7 @@ class ReleaseNotesContext(BaseContentContext):
         features (List[str]): List of new features.
         bug_fixes (List[str]): List of bug fixes.
     """
+
     version: str
     release_date: Optional[datetime] = None
     changes: List[str] = Field(default_factory=list)
@@ -88,8 +97,10 @@ class ReleaseNotesContext(BaseContentContext):
     features: List[str] = Field(default_factory=list)
     bug_fixes: List[str] = Field(default_factory=list)
 
+
 # Union type for all content types
 ContentContext = Union[TranscriptContext, BlogPostContext, ReleaseNotesContext]
+
 
 class AppContext(BaseModel):
     """
@@ -100,9 +111,11 @@ class AppContext(BaseModel):
         labels (Dict[str, str]): Dictionary of labels associated with the content.
         content_type (str): Type of content being processed (transcript, blog_post, release_notes).
     """
+
     content: ContentContext
     labels: Dict[str, str] = Field(default_factory=dict)
     content_type: str = "transcript"  # transcript, blog_post, release_notes
+
 
 # Legacy support - keeping EmailContext for backward compatibility
 class EmailContext(BaseModel):
@@ -116,6 +129,7 @@ class EmailContext(BaseModel):
         snippet (str): Short snippet or preview of the email.
         body (str): Full body content of the email.
     """
+
     id: str
     thread_id: str
     subject: str

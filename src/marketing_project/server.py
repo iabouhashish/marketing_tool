@@ -10,31 +10,35 @@ Usage:
     Run this module directly to start a local development server with Uvicorn.
 """
 
-# src/marketing_project/server.py
-from fastapi import FastAPI, BackgroundTasks, HTTPException
-from fastapi.responses import JSONResponse
-import uvicorn
-import os, yaml
 import logging
+import os
+
+import uvicorn
+import yaml
+
+# src/marketing_project/server.py
+from fastapi import BackgroundTasks, FastAPI, HTTPException
+from fastapi.responses import JSONResponse
 
 from marketing_project.runner import run_marketing_project_pipeline
 from marketing_project.scheduler import Scheduler
 
 # Initialize logger
-logger = logging.getLogger('marketing_project.server')
+logger = logging.getLogger("marketing_project.server")
 
 app = FastAPI(title="Marketing Project MCP Server")
 
 # Load config once
-BASE        = os.path.dirname(__file__)
-SPEC_PATH   = os.path.abspath(os.path.join(BASE, "..", "..", "config", "pipeline.yml"))
+BASE = os.path.dirname(__file__)
+SPEC_PATH = os.path.abspath(os.path.join(BASE, "..", "..", "config", "pipeline.yml"))
 with open(SPEC_PATH) as f:
     PIPELINE_SPEC = yaml.safe_load(f)
 TEMPLATE_VERSION = os.getenv("TEMPLATE_VERSION", "v1")
-PROMPTS_DIR      = os.path.abspath(os.path.join(BASE, "prompts", TEMPLATE_VERSION))
+PROMPTS_DIR = os.path.abspath(os.path.join(BASE, "prompts", TEMPLATE_VERSION))
 
 # Instantiate shared services
-scheduler   = Scheduler()
+scheduler = Scheduler()
+
 
 @app.get("/health")
 async def health_check():
@@ -51,28 +55,22 @@ async def health_check():
             "checks": {
                 "config_loaded": PIPELINE_SPEC is not None,
                 "prompts_dir_exists": os.path.exists(PROMPTS_DIR),
-                "scheduler_ready": scheduler is not None
-            }
+                "scheduler_ready": scheduler is not None,
+            },
         }
-        
+
         # Check if any critical checks failed
         if not all(health_status["checks"].values()):
             health_status["status"] = "unhealthy"
-            return JSONResponse(
-                status_code=503,
-                content=health_status
-            )
-        
+            return JSONResponse(status_code=503, content=health_status)
+
         return health_status
     except Exception as e:
         logger.error(f"Health check failed: {e}")
         return JSONResponse(
-            status_code=503,
-            content={
-                "status": "unhealthy",
-                "error": str(e)
-            }
+            status_code=503, content={"status": "unhealthy", "error": str(e)}
         )
+
 
 @app.get("/ready")
 async def readiness_check():
@@ -88,27 +86,21 @@ async def readiness_check():
             "checks": {
                 "config_loaded": PIPELINE_SPEC is not None,
                 "prompts_dir_exists": os.path.exists(PROMPTS_DIR),
-                "scheduler_ready": scheduler is not None
-            }
+                "scheduler_ready": scheduler is not None,
+            },
         }
-        
+
         if not all(ready_status["checks"].values()):
             ready_status["status"] = "not_ready"
-            return JSONResponse(
-                status_code=503,
-                content=ready_status
-            )
-        
+            return JSONResponse(status_code=503, content=ready_status)
+
         return ready_status
     except Exception as e:
         logger.error(f"Readiness check failed: {e}")
         return JSONResponse(
-            status_code=503,
-            content={
-                "status": "not_ready",
-                "error": str(e)
-            }
+            status_code=503, content={"status": "not_ready", "error": str(e)}
         )
+
 
 @app.post("/run")
 async def run_pipeline(background: BackgroundTasks):
@@ -122,7 +114,10 @@ async def run_pipeline(background: BackgroundTasks):
         return {"status": "accepted", "message": "Pipeline execution started"}
     except Exception as e:
         logger.error(f"Failed to trigger pipeline: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to trigger pipeline: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to trigger pipeline: {str(e)}"
+        )
+
 
 if __name__ == "__main__":
     # local dev server

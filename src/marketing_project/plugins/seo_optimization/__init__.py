@@ -6,12 +6,12 @@ including title tags, meta descriptions, headings, and content structure.
 """
 
 from .tasks import (
-    optimize_title_tags,
-    optimize_meta_descriptions,
-    optimize_headings,
-    optimize_content_structure,
     add_internal_links,
-    analyze_seo_performance
+    analyze_seo_performance,
+    optimize_content_structure,
+    optimize_headings,
+    optimize_meta_descriptions,
+    optimize_title_tags,
 )
 
 __all__ = [
@@ -20,5 +20,5 @@ __all__ = [
     "optimize_headings",
     "optimize_content_structure",
     "add_internal_links",
-    "analyze_seo_performance"
+    "analyze_seo_performance",
 ]

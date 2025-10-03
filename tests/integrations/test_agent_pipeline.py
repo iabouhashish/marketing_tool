@@ -1,6 +1,8 @@
-import pytest
 import shutil
 from pathlib import Path
+
+import pytest
+
 
 @pytest.mark.asyncio
 async def test_full_pipeline(monkeypatch, tmp_path):
@@ -9,7 +11,7 @@ async def test_full_pipeline(monkeypatch, tmp_path):
     prompts_source_dir = Path(__file__).parent.parent.parent / "prompts" / "v1" / lang
     prompts_test_dir = tmp_path / lang
     prompts_test_dir.mkdir(parents=True)
-    
+
     # Copy all real prompt templates to test directory
     if prompts_source_dir.exists():
         for template_file in prompts_source_dir.glob("*.j2"):
@@ -17,8 +19,10 @@ async def test_full_pipeline(monkeypatch, tmp_path):
     else:
         # Fallback: create minimal templates if source doesn't exist
         required_agents = [
-            "transcripts_agent", "blog_agent", "releasenotes_agent", 
-            "marketing_orchestrator_agent"
+            "transcripts_agent",
+            "blog_agent",
+            "releasenotes_agent",
+            "marketing_orchestrator_agent",
         ]
         for name in required_agents:
             (prompts_test_dir / f"{name}_instructions.j2").write_text("Prompt")

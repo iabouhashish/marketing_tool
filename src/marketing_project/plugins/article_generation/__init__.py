@@ -6,12 +6,12 @@ based on marketing briefs, SEO keywords, and content strategy.
 """
 
 from .tasks import (
-    generate_article_structure,
-    write_article_content,
+    add_call_to_actions,
     add_supporting_elements,
-    review_article_quality,
+    generate_article_structure,
     optimize_article_flow,
-    add_call_to_actions
+    review_article_quality,
+    write_article_content,
 )
 
 __all__ = [
@@ -20,5 +20,5 @@ __all__ = [
     "add_supporting_elements",
     "review_article_quality",
     "optimize_article_flow",
-    "add_call_to_actions"
+    "add_call_to_actions",
 ]

@@ -6,19 +6,19 @@ from content for better search engine visibility and content strategy.
 """
 
 from .tasks import (
+    analyze_keyword_density,
+    calculate_keyword_scores,
     extract_primary_keywords,
     extract_secondary_keywords,
-    analyze_keyword_density,
     generate_keyword_suggestions,
     optimize_keyword_placement,
-    calculate_keyword_scores
 )
 
 __all__ = [
     "extract_primary_keywords",
-    "extract_secondary_keywords", 
+    "extract_secondary_keywords",
     "analyze_keyword_density",
     "generate_keyword_suggestions",
     "optimize_keyword_placement",
-    "calculate_keyword_scores"
+    "calculate_keyword_scores",
 ]

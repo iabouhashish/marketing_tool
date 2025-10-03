@@ -6,20 +6,29 @@ to the three specialized agents: transcripts, blog posts, and release notes.
 
 The orchestrator handles:
 - TranscriptContext → transcripts_agent
-- BlogPostContext → blog_agent  
+- BlogPostContext → blog_agent
 - ReleaseNotesContext → releasenotes_agent
 """
 
-from any_agent import AnyAgent, AgentConfig
-from marketing_project.logging_config import LangChainLoggingCallbackHandler
-from marketing_project.core.prompts import load_agent_prompt
-from typing import Dict, Any, Optional
 import logging
+from typing import Any, Dict, Optional
+
+from any_agent import AgentConfig, AnyAgent
+
+from marketing_project.core.prompts import load_agent_prompt
+from marketing_project.logging_config import LangChainLoggingCallbackHandler
 
 logger = logging.getLogger("marketing_project.agents")
 handler = LangChainLoggingCallbackHandler()
 
-async def get_marketing_orchestrator_agent(prompts_dir, lang="en", transcripts_agent=None, blog_agent=None, releasenotes_agent=None):
+
+async def get_marketing_orchestrator_agent(
+    prompts_dir,
+    lang="en",
+    transcripts_agent=None,
+    blog_agent=None,
+    releasenotes_agent=None,
+):
     """
     Creates and returns a Marketing Project Orchestrator agent that routes content
     to the three specialized agents.
@@ -34,8 +43,10 @@ async def get_marketing_orchestrator_agent(prompts_dir, lang="en", transcripts_a
     Returns:
         AnyAgent: Configured orchestrator agent
     """
-    instructions, description = load_agent_prompt(prompts_dir, "marketing_orchestrator_agent", lang)
-    
+    instructions, description = load_agent_prompt(
+        prompts_dir, "marketing_orchestrator_agent", lang
+    )
+
     # Build tools list from the three main agents
     tools = []
     if transcripts_agent:
@@ -47,7 +58,7 @@ async def get_marketing_orchestrator_agent(prompts_dir, lang="en", transcripts_a
     if releasenotes_agent:
         tools.append(releasenotes_agent.run_async)
         logger.info("Added releasenotes_agent to orchestrator tools")
-    
+
     return await AnyAgent.create_async(
         "langchain",
         AgentConfig(

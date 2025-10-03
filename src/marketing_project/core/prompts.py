@@ -9,6 +9,7 @@ Functions:
 
 from jinja2 import Environment, FileSystemLoader
 
+
 def load_agent_prompt(prompts_dir, agent_name, lang="en"):
     """
     Load instructions and description for an agent from Jinja2 templates.
@@ -25,7 +26,7 @@ def load_agent_prompt(prompts_dir, agent_name, lang="en"):
     """
     env = Environment(loader=FileSystemLoader(f"{prompts_dir}/{lang}"), autoescape=True)
     instructions_tmpl = env.get_template(f"{agent_name}_instructions.j2")
-    description_tmpl  = env.get_template(f"{agent_name}_description.j2")
+    description_tmpl = env.get_template(f"{agent_name}_description.j2")
     instructions = instructions_tmpl.render()
-    description  = description_tmpl.render()
+    description = description_tmpl.render()
     return instructions, description

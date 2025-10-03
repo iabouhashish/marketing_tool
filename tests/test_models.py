@@ -2,12 +2,20 @@
 Tests for the core models.
 """
 
-import pytest
 from datetime import datetime
+
+import pytest
+
 from marketing_project.core.models import (
-    EmailContext, AppContext, BaseContentContext, TranscriptContext, 
-    BlogPostContext, ReleaseNotesContext, ContentContext
+    AppContext,
+    BaseContentContext,
+    BlogPostContext,
+    ContentContext,
+    EmailContext,
+    ReleaseNotesContext,
+    TranscriptContext,
 )
+
 
 def test_email_context():
     """Test EmailContext model (legacy support)."""
@@ -16,13 +24,14 @@ def test_email_context():
         thread_id="thread-456",
         subject="Test Email",
         snippet="This is a test email",
-        body="This is the full body of the test email"
+        body="This is the full body of the test email",
     )
     assert email.id == "test-123"
     assert email.thread_id == "thread-456"
     assert email.subject == "Test Email"
     assert email.snippet == "This is a test email"
     assert email.body == "This is the full body of the test email"
+
 
 def test_base_content_context():
     """Test BaseContentContext model."""
@@ -33,7 +42,7 @@ def test_base_content_context():
         snippet="This is a snippet",
         created_at=datetime.now(),
         source_url="https://example.com",
-        metadata={"author": "Test Author"}
+        metadata={"author": "Test Author"},
     )
     assert content.id == "content-123"
     assert content.title == "Test Content"
@@ -41,6 +50,7 @@ def test_base_content_context():
     assert content.snippet == "This is a snippet"
     assert content.source_url == "https://example.com"
     assert content.metadata["author"] == "Test Author"
+
 
 def test_transcript_context():
     """Test TranscriptContext model."""
@@ -52,7 +62,7 @@ def test_transcript_context():
         speakers=["Speaker 1", "Speaker 2"],
         duration="45:30",
         transcript_type="podcast",
-        timestamps={"00:00": "Introduction", "10:30": "Main topic"}
+        timestamps={"00:00": "Introduction", "10:30": "Main topic"},
     )
     assert transcript.id == "transcript-123"
     assert transcript.title == "Podcast Episode 1"
@@ -60,6 +70,7 @@ def test_transcript_context():
     assert len(transcript.speakers) == 2
     assert transcript.duration == "45:30"
     assert transcript.timestamps["00:00"] == "Introduction"
+
 
 def test_blog_post_context():
     """Test BlogPostContext model."""
@@ -72,7 +83,7 @@ def test_blog_post_context():
         tags=["AI", "Technology", "Guide"],
         category="Technology",
         word_count=1500,
-        reading_time="5 min"
+        reading_time="5 min",
     )
     assert blog_post.id == "blog-123"
     assert blog_post.title == "How to Use AI"
@@ -81,6 +92,7 @@ def test_blog_post_context():
     assert blog_post.category == "Technology"
     assert blog_post.word_count == 1500
     assert blog_post.reading_time == "5 min"
+
 
 def test_release_notes_context():
     """Test ReleaseNotesContext model."""
@@ -94,7 +106,7 @@ def test_release_notes_context():
         changes=["Added new dashboard", "Improved performance"],
         breaking_changes=["Removed deprecated API"],
         features=["New user interface", "Enhanced security"],
-        bug_fixes=["Fixed login issue", "Resolved memory leak"]
+        bug_fixes=["Fixed login issue", "Resolved memory leak"],
     )
     assert release_notes.id == "release-123"
     assert release_notes.version == "2.0.0"
@@ -103,22 +115,22 @@ def test_release_notes_context():
     assert len(release_notes.features) == 2
     assert len(release_notes.bug_fixes) == 2
 
+
 def test_app_context_with_transcript():
     """Test AppContext model with TranscriptContext."""
     transcript = TranscriptContext(
         id="transcript-123",
         title="Test Podcast",
         content="Full transcript content",
-        snippet="Test snippet"
+        snippet="Test snippet",
     )
     context = AppContext(
-        content=transcript,
-        labels={"category": "technology"},
-        content_type="transcript"
+        content=transcript, labels={"category": "technology"}, content_type="transcript"
     )
     assert context.content.id == "transcript-123"
     assert context.content_type == "transcript"
     assert context.labels["category"] == "technology"
+
 
 def test_app_context_with_blog_post():
     """Test AppContext model with BlogPostContext."""
@@ -126,14 +138,12 @@ def test_app_context_with_blog_post():
         id="blog-123",
         title="Test Blog Post",
         content="Full blog content",
-        snippet="Test snippet"
+        snippet="Test snippet",
     )
-    context = AppContext(
-        content=blog_post,
-        content_type="blog_post"
-    )
+    context = AppContext(content=blog_post, content_type="blog_post")
     assert context.content.id == "blog-123"
     assert context.content_type == "blog_post"
+
 
 def test_app_context_with_release_notes():
     """Test AppContext model with ReleaseNotesContext."""
@@ -142,12 +152,9 @@ def test_app_context_with_release_notes():
         title="Test Release",
         content="Full release content",
         snippet="Test snippet",
-        version="1.0.0"
+        version="1.0.0",
     )
-    context = AppContext(
-        content=release_notes,
-        content_type="release_notes"
-    )
+    context = AppContext(content=release_notes, content_type="release_notes")
     assert context.content.id == "release-123"
     assert context.content_type == "release_notes"
     assert context.content.version == "1.0.0"

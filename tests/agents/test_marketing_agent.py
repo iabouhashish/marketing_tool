@@ -1,5 +1,7 @@
 import pytest
+
 from marketing_project.agents.marketing_agent import get_marketing_orchestrator_agent
+
 
 class DummyAgent:
     async def run_async(self, ctx: dict) -> str:
@@ -13,6 +15,7 @@ class DummyAgent:
             str: The result of the asynchronous operation, "ok" in this case.
         """
         return "ok"
+
 
 @pytest.mark.asyncio
 async def test_get_marketing_orchestrator_agent(tmp_path):
@@ -35,11 +38,17 @@ async def test_get_marketing_orchestrator_agent(tmp_path):
     lang = "en"
     d = prompts_dir / lang
     d.mkdir(parents=True)
-    (d / "marketing_orchestrator_agent_instructions.j2").write_text("You are the marketing orchestrator.")
-    (d / "marketing_orchestrator_agent_description.j2").write_text("Handles content routing.")
+    (d / "marketing_orchestrator_agent_instructions.j2").write_text(
+        "You are the marketing orchestrator."
+    )
+    (d / "marketing_orchestrator_agent_description.j2").write_text(
+        "Handles content routing."
+    )
     transcripts_agent = DummyAgent()
     blog_agent = DummyAgent()
     releasenotes_agent = DummyAgent()
-    agent = await get_marketing_orchestrator_agent(str(prompts_dir), lang, transcripts_agent, blog_agent, releasenotes_agent)
+    agent = await get_marketing_orchestrator_agent(
+        str(prompts_dir), lang, transcripts_agent, blog_agent, releasenotes_agent
+    )
     assert agent.config.name == "MarketingOrchestratorAgent"
     assert "marketing" in agent.config.instructions
