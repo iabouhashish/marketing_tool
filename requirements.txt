@@ -14,7 +14,7 @@ ics==0.7.2
 python-dotenv==1.1.0
 fastapi[standard]==0.115.13
 apscheduler==3.11.0
-langchain-community==0.3.26
+langchain-community==0.3.30
 langchain-openai==0.3.24
 beautifulsoup4==4.13.4
 pytesseract>=0.3.10
