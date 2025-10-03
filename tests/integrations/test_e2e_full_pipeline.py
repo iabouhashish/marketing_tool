@@ -188,9 +188,6 @@ class TestE2EFullPipeline:
             assert agent_name in agents, f"Missing agent: {agent_name}"
             assert agents[agent_name] is not None, f"Agent {agent_name} is None"
 
-        # For now, just verify that the pipeline can be initialized
-        # The actual content processing might fail due to API issues
-        # but we can at least verify the structure is correct
         processed_content = result["processed_content"]
         logger.info(
             f"Pipeline initialized with {len(processed_content)} processed items"
