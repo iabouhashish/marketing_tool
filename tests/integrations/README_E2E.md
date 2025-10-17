@@ -17,7 +17,7 @@ The E2E tests validate the complete content processing pipeline using real conte
 - **Original 3-Agent Pipeline**: transcripts, blog, release notes
 - **New 8-Step Pipeline**: Complete content analysis workflow
   1. AnalyzeContent
-  2. ExtractSEOKeywords  
+  2. ExtractSEOKeywords
   3. GenerateMarketingBrief
   4. GenerateArticle
   5. OptimizeSEO
@@ -54,8 +54,8 @@ OPENAI_API_KEY=your_actual_openai_key_here
 ### Required Files
 - `content/example_blog_post.json` - Blog post content for testing
 - `content/example_transcript.md` - Podcast transcript for testing
-- `prompts/v1/en/*.j2` - Prompt templates
-- `config/pipeline.yml` - Pipeline configuration
+- `src/marketing_project/prompts/v1/en/*.j2` - Prompt templates
+- `src/marketing_project/config/pipeline.yml` - Pipeline configuration
 
 ### Dependencies
 ```bash
