@@ -1,0 +1,77 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "content_formatting_response",
+    "description": "Publication-ready formatted content output from the Content Formatting agent",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "formatted_html": {
+          "type": "string",
+          "description": "Article content formatted as semantic HTML with internal links inserted, ready for publication"
+        },
+        "formatted_markdown": {
+          "type": "string",
+          "description": "Article content formatted as Markdown"
+        },
+        "table_of_contents": {
+          "type": "array",
+          "description": "Table of contents with anchor links for each section",
+          "items": {
+            "type": "object",
+            "properties": {
+              "section": {
+                "type": "string",
+                "description": "Section title"
+              },
+              "anchor": {
+                "type": "string",
+                "description": "HTML anchor link for this section, e.g. '#section-title'"
+              }
+            },
+            "required": [
+              "section",
+              "anchor"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "reading_time": {
+          "type": "number",
+          "description": "Estimated reading time in minutes"
+        },
+        "formatting_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Formatting recommendations, compliance notes, or issues found during formatting"
+        },
+        "accessibility_score": {
+          "type": "number",
+          "description": "WCAG 2.1 AA compliance score from 0 to 100. Minimum target is 90"
+        },
+        "formatting_quality_score": {
+          "type": "number",
+          "description": "Overall formatting quality score from 0 to 100"
+        },
+        "confidence_score": {
+          "type": "number",
+          "description": "Overall confidence from 0.0 to 1.0"
+        }
+      },
+      "required": [
+        "formatted_html",
+        "formatted_markdown",
+        "table_of_contents",
+        "reading_time",
+        "formatting_notes",
+        "accessibility_score",
+        "formatting_quality_score",
+        "confidence_score"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

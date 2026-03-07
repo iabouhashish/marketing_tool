@@ -124,7 +124,7 @@ def sample_seo_keywords():
 @pytest.fixture
 def sample_content_context():
     """Sample ContentContext for testing."""
-    from marketing_project.core.models import BlogPostContext
+    from marketing_project.models.content_models import BlogPostContext
 
     return BlogPostContext(
         id="test-content-1",
@@ -168,7 +168,7 @@ def sample_marketing_brief():
 @pytest.fixture
 def sample_blog_post():
     """Sample blog post data for testing."""
-    from marketing_project.core.models import BlogPostContext
+    from marketing_project.models.content_models import BlogPostContext
 
     return BlogPostContext(
         id="test-blog-1",
@@ -179,7 +179,6 @@ def sample_blog_post():
         tags=["AI", "Marketing", "Technology"],
         category="Technology",
         word_count=500,
-        reading_time="3 minutes",
         created_at="2024-01-01T00:00:00Z",
     )
 
@@ -187,7 +186,7 @@ def sample_blog_post():
 @pytest.fixture
 def sample_transcript():
     """Sample transcript data for testing."""
-    from marketing_project.core.models import TranscriptContext
+    from marketing_project.models.content_models import TranscriptContext
 
     return TranscriptContext(
         id="test-transcript-1",
@@ -195,9 +194,8 @@ def sample_transcript():
         content="Speaker 1: Welcome to our discussion about AI in marketing. Speaker 2: Thank you for having me. This is an exciting topic.",
         snippet="A discussion about AI in marketing",
         speakers=["Speaker 1", "Speaker 2"],
-        duration="30:00",
+        duration=1800,  # 30 minutes in seconds (int, not string)
         transcript_type="podcast",
-        timestamps={"00:00": "Introduction", "15:00": "Main discussion"},
         created_at="2024-01-01T00:00:00Z",
     )
 
@@ -205,7 +203,8 @@ def sample_transcript():
 @pytest.fixture
 def sample_app_context_transcript():
     """Sample AppContext with transcript for testing."""
-    from marketing_project.core.models import AppContext, TranscriptContext
+    from marketing_project.core.models import AppContext
+    from marketing_project.models.content_models import TranscriptContext
 
     transcript = TranscriptContext(
         id="test-transcript-1",
@@ -213,7 +212,7 @@ def sample_app_context_transcript():
         content="Speaker 1: Welcome to our discussion about AI in marketing. Speaker 2: Thank you for having me.",
         snippet="A discussion about AI in marketing",
         speakers=["Speaker 1", "Speaker 2"],
-        duration="30:00",
+        duration=1800,  # 30 minutes in seconds (int, not string)
         transcript_type="podcast",
         created_at="2024-01-01T00:00:00Z",
     )
@@ -228,7 +227,7 @@ def sample_app_context_transcript():
 @pytest.fixture
 def sample_release_notes():
     """Sample release notes data for testing."""
-    from marketing_project.core.models import ReleaseNotesContext
+    from marketing_project.models.content_models import ReleaseNotesContext
 
     return ReleaseNotesContext(
         id="test-release-1",
@@ -238,7 +237,6 @@ def sample_release_notes():
         version="2.0.0",
         features=["New dashboard", "Enhanced security"],
         bug_fixes=["Fixed login issue", "Resolved memory leak"],
-        breaking_changes=["Removed deprecated API"],
         changes=["Added new features", "Fixed bugs"],
         created_at="2024-01-01T00:00:00Z",
     )
@@ -247,7 +245,8 @@ def sample_release_notes():
 @pytest.fixture
 def sample_app_context_release():
     """Sample AppContext with release notes for testing."""
-    from marketing_project.core.models import AppContext, ReleaseNotesContext
+    from marketing_project.core.models import AppContext
+    from marketing_project.models.content_models import ReleaseNotesContext
 
     release_notes = ReleaseNotesContext(
         id="test-release-1",
@@ -270,7 +269,8 @@ def sample_app_context_release():
 @pytest.fixture
 def sample_app_context_blog():
     """Sample AppContext with blog post for testing."""
-    from marketing_project.core.models import AppContext, BlogPostContext
+    from marketing_project.core.models import AppContext
+    from marketing_project.models.content_models import BlogPostContext
 
     blog_post = BlogPostContext(
         id="test-blog-1",
@@ -319,65 +319,102 @@ def sample_style_guide():
 
 
 @pytest.fixture
-def sample_available_agents():
-    """Sample available agents for testing - only includes actual agents from the codebase."""
+def sample_available_processors():
+    """Sample available processors for testing.
+
+    Note: The system now uses deterministic processors instead of agents.
+    """
     return {
-        "article_generation_agent": {
-            "name": "Article Generation Agent",
-            "capabilities": ["article_generation", "content_creation"],
-            "priority": "high",
-        },
-        "blog_agent": {
-            "name": "Blog Agent",
+        "blog_processor": {
+            "name": "Blog Processor",
             "capabilities": ["blog_post", "article"],
-            "priority": "high",
+            "type": "processor",
         },
-        "content_formatting_agent": {
-            "name": "Content Formatting Agent",
-            "capabilities": ["content_formatting", "formatting"],
-            "priority": "high",
-        },
-        "content_pipeline_agent": {
-            "name": "Content Pipeline Agent",
-            "capabilities": ["content_pipeline", "workflow"],
-            "priority": "high",
-        },
-        "internal_docs_agent": {
-            "name": "Internal Docs Agent",
-            "capabilities": ["internal_docs", "documentation"],
-            "priority": "high",
-        },
-        "marketing_agent": {
-            "name": "Marketing Agent",
-            "capabilities": ["marketing", "promotion"],
-            "priority": "high",
-        },
-        "marketing_brief_agent": {
-            "name": "Marketing Brief Agent",
-            "capabilities": ["marketing_brief", "brief_creation"],
-            "priority": "high",
-        },
-        "releasenotes_agent": {
-            "name": "Release Notes Agent",
-            "capabilities": ["release_notes", "changelog"],
-            "priority": "high",
-        },
-        "seo_keywords_agent": {
-            "name": "SEO Keywords Agent",
-            "capabilities": ["seo_keywords", "keyword_research"],
-            "priority": "high",
-        },
-        "seo_optimization_agent": {
-            "name": "SEO Optimization Agent",
-            "capabilities": ["seo_optimization", "seo"],
-            "priority": "high",
-        },
-        "transcripts_agent": {
-            "name": "Transcripts Agent",
+        "transcript_processor": {
+            "name": "Transcript Processor",
             "capabilities": ["transcripts", "transcript_processing"],
-            "priority": "high",
+            "type": "processor",
+        },
+        "releasenotes_processor": {
+            "name": "Release Notes Processor",
+            "capabilities": ["release_notes", "changelog"],
+            "type": "processor",
         },
     }
+
+
+@pytest.fixture
+def function_pipeline():
+    """Create a FunctionPipeline instance for testing."""
+    from unittest.mock import AsyncMock, MagicMock
+
+    from marketing_project.services.function_pipeline import FunctionPipeline
+
+    pipeline = FunctionPipeline(model="gpt-5.1", temperature=0.7, lang="en")
+
+    # Mock the OpenAI client to avoid real API calls
+    mock_client = AsyncMock()
+    mock_response = MagicMock()
+    mock_response.choices = [MagicMock()]
+    mock_response.choices[0].message.tool_calls = []
+    mock_response.choices[0].message.content = '{"status": "success"}'
+    mock_client.chat.completions.create = AsyncMock(return_value=mock_response)
+    pipeline.client = mock_client
+
+    return pipeline
+
+
+@pytest.fixture
+async def job_manager():
+    """Create a JobManager instance for testing."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from marketing_project.services.job_manager import JobManager
+
+    manager = JobManager()
+
+    # Mock Redis manager
+    mock_redis = AsyncMock()
+    mock_redis.get = AsyncMock(return_value=None)
+    mock_redis.set = AsyncMock(return_value=True)
+    mock_redis.setex = AsyncMock(return_value=True)
+    mock_redis.delete = AsyncMock(return_value=1)
+    mock_redis.sadd = AsyncMock(return_value=1)
+    mock_redis.smembers = AsyncMock(return_value=set())
+
+    with patch.object(manager, "get_redis", return_value=mock_redis):
+        yield manager
+
+
+@pytest.fixture
+def plugin_registry():
+    """Create a PluginRegistry instance for testing."""
+    from marketing_project.plugins.registry import PluginRegistry
+
+    registry = PluginRegistry()
+    return registry
+
+
+@pytest.fixture
+def mock_plugin_registry():
+    """Create a mocked PluginRegistry for testing."""
+    from unittest.mock import MagicMock
+
+    from marketing_project.plugins.registry import PluginRegistry
+
+    registry = PluginRegistry()
+    # Don't auto-discover, just return empty registry for testing
+    return registry
+
+
+@pytest.fixture
+def mock_retry_service():
+    """Create a mock retry service for testing."""
+    from unittest.mock import AsyncMock
+
+    service = AsyncMock()
+    service.retry_step = AsyncMock()
+    return service
 
 
 # Markers for different test types

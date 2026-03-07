@@ -7,7 +7,7 @@ This module provides request logging and request ID tracking.
 import logging
 import time
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from fastapi import Request, Response
@@ -86,7 +86,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "client_ip": client_ip,
             "user_agent": request.headers.get("user-agent", ""),
             "user_role": user_role,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "content_type": request.headers.get("content-type", ""),
             "content_length": request.headers.get("content-length", "0"),
         }
@@ -113,7 +113,7 @@ class LoggingMiddleware(BaseHTTPMiddleware):
             "status_code": response.status_code,
             "process_time": process_time,
             "user_role": user_role,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "response_size": response.headers.get("content-length", "0"),
         }
 

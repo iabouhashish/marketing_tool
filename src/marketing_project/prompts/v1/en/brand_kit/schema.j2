@@ -1,0 +1,135 @@
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "brand_kit_response",
+    "description": "Brand-consistent design output from the Brand Kit agent for transforming content into visual marketing materials",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "properties": {
+        "visual_components": {
+          "type": "array",
+          "description": "Array of visual components with descriptions and alt text",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "description": "Component type: image, chart, infographic, callout, hero, icon, etc."
+              },
+              "description": {
+                "type": "string",
+                "description": "Description of the visual component and its purpose"
+              },
+              "alt_text": {
+                "type": "string",
+                "description": "Keyword-optimized alt text for this component"
+              }
+            },
+            "required": [
+              "type",
+              "description",
+              "alt_text"
+            ],
+            "additionalProperties": false
+          }
+        },
+        "color_scheme": {
+          "type": "object",
+          "description": "Brand color palette for this content, aligned with target audience and content type",
+          "properties": {
+            "primary": {
+              "type": "string",
+              "description": "Primary brand color as hex code, e.g. '#1A2B3C'"
+            },
+            "secondary": {
+              "type": "string",
+              "description": "Secondary brand color as hex code"
+            },
+            "accent": {
+              "type": "string",
+              "description": "Accent color as hex code for CTAs and highlights"
+            }
+          },
+          "required": [
+            "primary",
+            "secondary",
+            "accent"
+          ],
+          "additionalProperties": false
+        },
+        "typography": {
+          "type": "object",
+          "description": "Typography specifications for the content layout",
+          "properties": {
+            "font_family": {
+              "type": "string",
+              "description": "Recommended font family for headings and body text"
+            },
+            "heading_size": {
+              "type": "string",
+              "description": "Recommended heading font size, e.g. '2rem' or '32px'"
+            },
+            "body_size": {
+              "type": "string",
+              "description": "Recommended body font size, e.g. '1rem' or '16px'"
+            },
+            "line_height": {
+              "type": "string",
+              "description": "Recommended line height, e.g. '1.6'"
+            }
+          },
+          "required": [
+            "font_family",
+            "heading_size",
+            "body_size",
+            "line_height"
+          ],
+          "additionalProperties": false
+        },
+        "layout_suggestions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Layout and spacing recommendations, e.g. 'Use 48px section spacing', 'Single column with sidebar', 'Add visual break after intro'"
+        },
+        "hero_image_concept": {
+          "type": "string",
+          "description": "Description of the hero image concept \u2014 aligned with content tone, target audience, and keywords"
+        },
+        "accessibility_notes": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Specific accessibility enhancements: alt text recommendations, contrast adjustments, heading structure notes"
+        },
+        "brand_consistency_score": {
+          "type": "number",
+          "description": "Brand guideline adherence score from 0 to 100"
+        },
+        "design_quality_score": {
+          "type": "number",
+          "description": "Overall design quality assessment from 0 to 100"
+        },
+        "confidence_score": {
+          "type": "number",
+          "description": "Overall confidence from 0.0 to 1.0"
+        }
+      },
+      "required": [
+        "visual_components",
+        "color_scheme",
+        "typography",
+        "layout_suggestions",
+        "hero_image_concept",
+        "accessibility_notes",
+        "brand_consistency_score",
+        "design_quality_score",
+        "confidence_score"
+      ],
+      "additionalProperties": false
+    }
+  }
+}

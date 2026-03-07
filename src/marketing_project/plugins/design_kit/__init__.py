@@ -1,16 +1,10 @@
 """
-Design Kit Plugin - Professional design templates and components for marketing content.
+Backward-compatibility shim for design_kit plugin.
 
-This plugin provides design templates, visual components, and brand guidelines
-to enhance marketing content with professional visual elements.
-
-Functions:
-    select_design_template: Choose appropriate design template based on content type
-    apply_brand_guidelines: Apply consistent brand styling and guidelines
-    generate_visual_components: Create headers, CTAs, cards, and other visual elements
-    optimize_responsive_layout: Ensure mobile and desktop compatibility
-    create_visual_assets: Generate or select appropriate images and graphics
-    validate_design_compliance: Check content against design standards
+This module re-exports from brand_kit plugin.
 """
 
-from .tasks import *
+from marketing_project.plugins.brand_kit.tasks import BrandKitPlugin
+from marketing_project.plugins.brand_kit.tasks import BrandKitPlugin as DesignKitPlugin
+
+__all__ = ["DesignKitPlugin", "BrandKitPlugin"]

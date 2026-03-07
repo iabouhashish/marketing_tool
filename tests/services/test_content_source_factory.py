@@ -18,7 +18,7 @@ from marketing_project.core.content_sources import (
     ContentSourceType,
     FileSourceConfig,
 )
-from marketing_project.core.models import BlogPostContext, TranscriptContext
+from marketing_project.models.content_models import BlogPostContext, TranscriptContext
 from marketing_project.services.content_source_config_loader import (
     ContentSourceConfigLoader,
 )
@@ -119,6 +119,7 @@ class TestContentSourceManager:
             name="test_source",
             source_type=ContentSourceType.FILE,
             file_paths=[str(test_dir)],
+            file_patterns=[str(test_dir / "*.json")],  # Add pattern to find the file
         )
 
         success = await manager.add_source_from_config(config)

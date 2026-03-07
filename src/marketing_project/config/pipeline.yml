@@ -7,9 +7,8 @@ pipelines:
     - GenerateMarketingBrief
     - GenerateArticle
     - OptimizeSEO
-    - SuggestInternalDocs
+    - suggested_links
     - FormatContent
-    - ApplyDesignKit
 
 # Context passing configuration for better data flow
 context_passing:
@@ -37,19 +36,15 @@ context_passing:
     output: "seo_optimized_result"
     next_input: "seo_optimized_result"
     data_structure: "Dict[str, Any]"
-  SuggestInternalDocs:
+  suggested_links:
     input: "seo_optimized_result"
-    output: "internal_docs_result"
-    next_input: "internal_docs_result"
+    output: "suggested_links"
+    next_input: "suggested_links"
     data_structure: "Dict[str, Any]"
   FormatContent:
-    input: "internal_docs_result"
+    input: "seo_optimized_result"
     output: "formatted_content_result"
     next_input: "formatted_content_result"
-    data_structure: "Dict[str, Any]"
-  ApplyDesignKit:
-    input: "formatted_content_result"
-    output: "final_content_result"
     data_structure: "Dict[str, Any]"
 
 sub_pipelines:
@@ -88,13 +83,13 @@ sub_pipelines:
     - OptimizeReadability
     - AddVisualElements
     - FinalizeContent
-  design_kit:
-    - SelectDesignTemplate
+  brand_kit:
+    - SelectBrandTemplate
     - ApplyBrandGuidelines
     - GenerateVisualComponents
     - OptimizeResponsiveLayout
     - CreateVisualAssets
-    - ValidateDesignCompliance
+    - ValidateBrandCompliance
 
 branching:
   AnalyzeContent:
@@ -110,11 +105,21 @@ content_sources:
   default_sources:
     - name: "local_content"
       type: "file"
-      enabled: true
+      enabled: false  # Disabled by default on AWS - use s3_content instead
       config:
-        file_paths: ["content/", "data/"]
-        file_patterns: ["content/**/*.md", "content/**/*.json", "data/**/*.txt"]
+        file_paths: ["content/"]
+        file_patterns: ["content/**/*.md", "content/**/*.json", "content/**/*.txt"]
         watch_directory: true
+        supported_formats: [".md", ".json", ".txt", ".yaml", ".yml"]
+
+    - name: "s3_content"
+      type: "s3"
+      enabled: true  # Enabled by default - uses AWS_S3_BUCKET env var
+      config:
+        bucket_name: "${AWS_S3_BUCKET}"  # Uses env var if not set
+        region: "${AWS_S3_REGION}"  # Uses env var if not set
+        prefix: ""  # No prefix - files stored directly in blog_posts/, etc.
+        file_patterns: ["**/*.json", "**/*.md", "**/*.txt"]
         supported_formats: [".md", ".json", ".txt", ".yaml", ".yml"]
 
     - name: "content_api"

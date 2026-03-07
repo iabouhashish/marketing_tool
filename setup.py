@@ -4,37 +4,72 @@ Setup script for Marketing Project.
 """
 
 import os
+from pathlib import Path
 
 from setuptools import find_packages, setup
 
 
-# Read the README file
+# Read the README file (optional for Docker builds)
 def read_readme():
-    with open("README.md", "r", encoding="utf-8") as fh:
-        return fh.read()
+    try:
+        with open("README.md", "r", encoding="utf-8") as fh:
+            return fh.read()
+    except FileNotFoundError:
+        return "Marketing Project - A production-ready marketing agentic project"
 
 
-# Read requirements
+# Read requirements (optional for Docker builds)
 def read_requirements():
-    with open("requirements.txt", "r", encoding="utf-8") as fh:
-        return [
-            line.strip() for line in fh if line.strip() and not line.startswith("#")
-        ]
+    try:
+        with open("requirements.txt", "r", encoding="utf-8") as fh:
+            return [
+                line.strip() for line in fh if line.strip() and not line.startswith("#")
+            ]
+    except FileNotFoundError:
+        return []
 
 
-# Read dev requirements
+# Read dev requirements (optional for Docker builds)
 def read_dev_requirements():
-    with open("requirements-dev.txt", "r", encoding="utf-8") as fh:
-        return [
-            line.strip()
-            for line in fh
-            if line.strip() and not line.startswith("#") and not line.startswith("-r")
-        ]
+    try:
+        with open("requirements-dev.txt", "r", encoding="utf-8") as fh:
+            return [
+                line.strip()
+                for line in fh
+                if line.strip()
+                and not line.startswith("#")
+                and not line.startswith("-r")
+            ]
+    except FileNotFoundError:
+        return []
+
+
+# Read version from _version.py
+def read_version():
+    """
+    Read version from _version.py module.
+    This allows the version to be dynamically determined from Git tags.
+    """
+    # Import the version module directly
+    # We need to add src to the path first
+    import sys
+
+    src_path = Path(__file__).parent / "src"
+    if str(src_path) not in sys.path:
+        sys.path.insert(0, str(src_path))
+
+    try:
+        from marketing_project._version import __version__
+
+        return __version__
+    except (ImportError, Exception):
+        # Fallback to default version if import fails
+        return "0.1.0"
 
 
 setup(
     name="marketing-project",
-    version="0.1.0",
+    version=read_version(),
     author="Ibrahim Abouhashish",
     author_email="your-email@example.com",
     description="A marketing agentic project with extensible agents, plugins, and multi-locale support",

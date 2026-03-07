@@ -15,19 +15,17 @@ import logging
 import re
 from typing import Any, Dict, List, Optional, Union
 
-from marketing_project.core.models import (
-    AppContext,
-    BlogPostContext,
-    ContentContext,
-    EmailContext,
-    ReleaseNotesContext,
-    TranscriptContext,
-)
+from marketing_project.core.models import AppContext, ContentContext, EmailContext
 from marketing_project.core.utils import (
     create_standard_task_result,
     ensure_content_context,
     extract_content_metadata_for_pipeline,
     validate_content_for_processing,
+)
+from marketing_project.models.content_models import (
+    BlogPostContext,
+    ReleaseNotesContext,
+    TranscriptContext,
 )
 
 logger = logging.getLogger("marketing_project.plugins.content_analysis")
@@ -124,32 +122,6 @@ def validate_content_structure(content: ContentContext) -> bool:
     return True
 
 
-def route_to_appropriate_agent(
-    app_context: AppContext, available_agents: Dict[str, Any]
-) -> str:
-    """
-    Routes the app context to the appropriate agent based on content type.
-
-    Args:
-        app_context: Application context with content
-        available_agents: Dictionary of available agents
-
-    Returns:
-        str: Result of the routing operation
-    """
-    content_type = app_context.content_type
-    agent_name = analyze_content_type(app_context.content)
-
-    if agent_name in available_agents and available_agents[agent_name]:
-        logger.info(f"Routing {content_type} to {agent_name}")
-        return f"Successfully routed {content_type} to {agent_name}"
-    else:
-        logger.warning(
-            f"No agent available for {content_type}, using general processing"
-        )
-        return f"No specialized agent for {content_type}, using general processing"
-
-
 def analyze_content_for_pipeline(
     content: Union[ContentContext, Dict[str, Any]],
 ) -> Dict[str, Any]:
@@ -177,42 +149,53 @@ def analyze_content_for_pipeline(
         # Extract metadata
         metadata = extract_content_metadata_for_pipeline(content_obj)
 
-        analysis = {
-            "content_type": metadata["content_type"],
-            "content_quality": {},
-            "seo_potential": {},
-            "marketing_value": {},
-            "processing_recommendations": validation.get("warnings", []),
-            "pipeline_ready": validation["is_valid"],
-        }
-
         # Analyze content quality
         content_text = content_obj.content or ""
         word_count = len(content_text.split())
+        readability_score = calculate_basic_readability(content_text)
+        completeness_score = assess_content_completeness(content_obj)
 
-        analysis["content_quality"] = {
-            "word_count": word_count,
-            "has_title": bool(content_obj.title),
-            "has_snippet": bool(content_obj.snippet),
-            "has_metadata": bool(content_obj.metadata),
-            "readability_score": calculate_basic_readability(content_text),
-            "completeness_score": assess_content_completeness(content_obj),
-        }
+        # Calculate overall quality score (average of readability and completeness)
+        quality_score = (readability_score + completeness_score) / 2.0
 
-        # Analyze SEO potential
-        analysis["seo_potential"] = {
-            "has_keywords": bool(extract_potential_keywords(content_text)),
-            "title_optimization": assess_title_seo(content_obj.title or ""),
-            "content_structure": assess_content_structure(content_text),
-            "internal_linking_potential": assess_linking_potential(content_text),
-        }
+        # Calculate SEO potential score
+        seo_potential_score = 0.0
+        if extract_potential_keywords(content_text):
+            seo_potential_score += 30.0
+        title_seo = assess_title_seo(content_obj.title or "")
+        if isinstance(title_seo, dict) and "score" in title_seo:
+            seo_potential_score += title_seo["score"] * 0.3
+        else:
+            seo_potential_score += 20.0
 
-        # Analyze marketing value
-        analysis["marketing_value"] = {
-            "engagement_potential": assess_engagement_potential(content_text),
-            "conversion_potential": assess_conversion_potential(content_text),
-            "shareability": assess_shareability(content_text),
-            "target_audience_appeal": assess_audience_appeal(content_text),
+        analysis = {
+            "content_type": metadata["content_type"],
+            "word_count": word_count,  # Top-level field for test compatibility
+            "quality_score": quality_score,  # Top-level field for test compatibility
+            "seo_potential": seo_potential_score,  # Top-level field for test compatibility
+            "content_quality": {
+                "word_count": word_count,
+                "has_title": bool(content_obj.title),
+                "has_snippet": bool(content_obj.snippet),
+                "has_metadata": bool(content_obj.metadata),
+                "readability_score": readability_score,
+                "completeness_score": completeness_score,
+            },
+            "seo_potential_details": {
+                "score": seo_potential_score,  # Also keep nested for backward compatibility
+                "has_keywords": bool(extract_potential_keywords(content_text)),
+                "title_optimization": assess_title_seo(content_obj.title or ""),
+                "content_structure": assess_content_structure(content_text),
+                "internal_linking_potential": assess_linking_potential(content_text),
+            },
+            "marketing_value": {
+                "engagement_potential": assess_engagement_potential(content_text),
+                "conversion_potential": assess_conversion_potential(content_text),
+                "shareability": assess_shareability(content_text),
+                "target_audience_appeal": assess_audience_appeal(content_text),
+            },
+            "processing_recommendations": validation.get("warnings", []),
+            "pipeline_ready": validation["is_valid"],
         }
 
         # Generate processing recommendations
@@ -231,7 +214,7 @@ def analyze_content_for_pipeline(
         if analysis["content_quality"]["readability_score"] < 60:
             recommendations.append("Improve readability with shorter sentences")
 
-        if not analysis["seo_potential"]["has_keywords"]:
+        if not analysis["seo_potential_details"]["has_keywords"]:
             recommendations.append("Add relevant keywords for SEO")
 
         analysis["processing_recommendations"] = recommendations
@@ -319,7 +302,7 @@ def assess_content_completeness(content: ContentContext) -> float:
     if content.content and "conclusion" in content.content.lower():
         score += 5
 
-    return min(score, max_score)
+    return float(min(score, max_score))
 
 
 def extract_potential_keywords(text: str) -> List[str]:
@@ -469,7 +452,8 @@ def assess_content_structure(text: str) -> Dict[str, Any]:
 
     # Check paragraph structure
     paragraphs = text.split("\n\n")
-    if len(paragraphs) >= 3:
+    paragraph_count = len([p for p in paragraphs if p.strip()])
+    if paragraph_count >= 3:
         score += 15
     else:
         issues.append("Too few paragraphs")
@@ -481,7 +465,32 @@ def assess_content_structure(text: str) -> Dict[str, Any]:
     else:
         issues.append("No call-to-action found")
 
-    return {"score": min(score, 100), "issues": issues}
+    # Extract headings for test compatibility
+    headings = []
+    for line in text.split("\n"):
+        if line.strip().startswith("#"):
+            headings.append(line.strip())
+
+    # Extract sections (content between headings)
+    sections = []
+    current_section = ""
+    for line in text.split("\n"):
+        if line.strip().startswith("#"):
+            if current_section:
+                sections.append(current_section.strip())
+            current_section = ""
+        else:
+            current_section += line + "\n"
+    if current_section:
+        sections.append(current_section.strip())
+
+    return {
+        "score": min(score, 100),
+        "issues": issues,
+        "headings": headings,  # For test compatibility
+        "paragraphs": paragraphs,  # For test compatibility
+        "sections": sections,  # For test compatibility
+    }
 
 
 def assess_linking_potential(text: str) -> Dict[str, Any]:
@@ -539,7 +548,7 @@ def assess_engagement_potential(text: str) -> float:
         float: Engagement score (0-100)
     """
     if not text:
-        return 0
+        return 0.0
 
     score = 0
 
@@ -567,7 +576,7 @@ def assess_engagement_potential(text: str) -> float:
     if any(phrase in text.lower() for phrase in action_words):
         score += 30
 
-    return min(score, 100)
+    return float(min(score, 100))
 
 
 def assess_conversion_potential(text: str) -> float:
@@ -581,7 +590,7 @@ def assess_conversion_potential(text: str) -> float:
         float: Conversion score (0-100)
     """
     if not text:
-        return 0
+        return 0.0
 
     score = 0
 
@@ -616,7 +625,7 @@ def assess_conversion_potential(text: str) -> float:
     if any(indicator in text.lower() for indicator in trust_indicators):
         score += 10
 
-    return min(score, 100)
+    return float(min(score, 100))
 
 
 def assess_shareability(text: str) -> float:
@@ -630,7 +639,7 @@ def assess_shareability(text: str) -> float:
         float: Shareability score (0-100)
     """
     if not text:
-        return 0
+        return 0.0
 
     score = 0
 
@@ -657,7 +666,7 @@ def assess_shareability(text: str) -> float:
     if any(indicator in text.lower() for indicator in emotional_indicators):
         score += 20
 
-    return min(score, 100)
+    return float(min(score, 100))
 
 
 def assess_audience_appeal(text: str) -> float:
@@ -671,7 +680,7 @@ def assess_audience_appeal(text: str) -> float:
         float: Audience appeal score (0-100)
     """
     if not text:
-        return 0
+        return 0.0
 
     score = 0
 
@@ -695,7 +704,7 @@ def assess_audience_appeal(text: str) -> float:
     if any(indicator in text.lower() for indicator in industry_indicators):
         score += 25
 
-    return min(score, 100)
+    return float(min(score, 100))
 
 
 def estimate_syllables(word: str) -> int:

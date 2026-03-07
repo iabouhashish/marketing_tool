@@ -95,8 +95,33 @@
     "Description": "Database master password"
   },
   {
+    "ParameterKey": "EnableMongoDB",
+    "ParameterValue": "false",
+    "Description": "Enable MongoDB/DocumentDB (true/false, default: false)"
+  },
+  {
     "ParameterKey": "MongoDBPassword",
-    "ParameterValue": "YOUR_MONGODB_PASSWORD_HERE",
-    "Description": "MongoDB password"
+    "ParameterValue": "",
+    "Description": "MongoDB password (required only if EnableMongoDB is true)"
+  },
+  {
+    "ParameterKey": "ArthurBaseUrl",
+    "ParameterValue": "http://localhost:3030",
+    "Description": "Base URL for Arthur API (optional - leave default to disable telemetry)"
+  },
+  {
+    "ParameterKey": "ArthurApiKey",
+    "ParameterValue": "",
+    "Description": "API key for Arthur authentication (optional - leave empty to disable telemetry)"
+  },
+  {
+    "ParameterKey": "ArthurTaskId",
+    "ParameterValue": "",
+    "Description": "Task ID for Arthur (optional - leave empty to disable telemetry, must have is_agentic=True if provided)"
+  },
+  {
+    "ParameterKey": "EncryptionKey",
+    "ParameterValue": "YOUR_FERNET_ENCRYPTION_KEY_HERE",
+    "Description": "Fernet encryption key for provider credentials (generate with: python -c \"from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())\")"
   }
 ]

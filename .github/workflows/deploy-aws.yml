@@ -1,0 +1,384 @@
+name: Deploy to AWS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to deploy to'
+        required: true
+        type: choice
+        options:
+          - dev
+          - stag
+          - prod
+        default: 'prod'
+      region:
+        description: 'AWS region'
+        required: false
+        default: 'us-east-2'
+      frontend_image:
+        description: 'Frontend Docker image URI (optional - defaults to docker.arthur.ai/arthur/marketing-tool/marketing-frontend)'
+        required: false
+        type: string
+        default: 'docker.arthur.ai/arthur/marketing-tool/marketing-frontend'
+      frontend_version:
+        description: 'Frontend Docker image version/tag (optional - defaults to backend version if empty)'
+        required: false
+        type: string
+        default: ''
+      frontend_docker_registry_username:
+        description: 'Docker registry username (optional - uses secret if not provided)'
+        required: false
+        type: string
+      frontend_docker_registry_password:
+        description: 'Docker registry password (optional - uses secret if not provided)'
+        required: false
+        type: string
+  push:
+    branches:
+      - main
+
+env:
+  AWS_REGION: ${{ github.event.inputs.region || 'us-east-2' }}
+  ENVIRONMENT: ${{ github.event.inputs.environment || 'prod' }}
+  PROJECT_NAME: marketing-tool
+
+jobs:
+  deploy:
+    name: Deploy to AWS
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Required to create tags
+      id-token: write  # Required for OIDC authentication
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate version tag
+        id: version
+        run: |
+          # Fetch all tags (including remote)
+          git fetch --tags --force
+
+          # Get the latest tag (only v*.*.* format)
+          LATEST_TAG=$(git tag -l "v*.*.*" --sort=-version:refname | head -n 1)
+
+          if [ -z "$LATEST_TAG" ]; then
+            LATEST_TAG="v0.0.0"
+            echo "No existing tags found, starting from v0.0.0"
+          else
+            echo "Latest tag: $LATEST_TAG"
+          fi
+
+          # Extract version number (remove 'v' prefix)
+          VERSION_NUMBER=$(echo $LATEST_TAG | sed 's/^v//')
+
+          # Split version into major.minor.patch
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION_NUMBER"
+
+          # Ensure we have valid numbers (handle edge cases)
+          MAJOR=${MAJOR:-0}
+          MINOR=${MINOR:-0}
+          PATCH=${PATCH:-0}
+
+          # Increment patch version
+          PATCH=$((PATCH + 1))
+
+          # Create new version tag
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+
+          # Keep incrementing until we find a tag that doesn't exist
+          while git rev-parse "$NEW_VERSION" >/dev/null 2>&1; do
+            echo "⚠️  Tag $NEW_VERSION already exists, incrementing patch version"
+            PATCH=$((PATCH + 1))
+            NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          done
+
+          echo "Using version: $NEW_VERSION"
+
+          # Create and push the tag
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag -a "$NEW_VERSION" -m "Release $NEW_VERSION - Auto-generated from main branch push [$(git rev-parse --short HEAD)]"
+          git push origin "$NEW_VERSION" || {
+            echo "⚠️  Failed to push tag, it may already exist remotely. Checking..."
+            if git ls-remote --tags origin | grep -q "refs/tags/$NEW_VERSION$"; then
+              echo "✅ Tag $NEW_VERSION already exists remotely, using it"
+            else
+              echo "❌ Failed to push tag and it doesn't exist remotely"
+              exit 1
+            fi
+          }
+
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "tag_created=true" >> $GITHUB_OUTPUT
+          echo "✅ Created and pushed tag: $NEW_VERSION"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Create ECR repository if it doesn't exist
+        run: |
+          REPO_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}"
+          echo "Checking if ECR repository exists: $REPO_NAME"
+
+          if ! aws ecr describe-repositories --repository-names "$REPO_NAME" --region ${{ env.AWS_REGION }} 2>/dev/null; then
+            echo "Repository does not exist, creating it..."
+            aws ecr create-repository \
+              --repository-name "$REPO_NAME" \
+              --region ${{ env.AWS_REGION }} \
+              --image-scanning-configuration scanOnPush=true \
+              --encryption-configuration encryptionType=AES256 || true
+            echo "✅ Created ECR repository: $REPO_NAME"
+          else
+            echo "✅ ECR repository already exists: $REPO_NAME"
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Extract metadata for Docker
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ steps.login-ecr.outputs.registry }}/${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}
+          tags: |
+            type=raw,value=${{ steps.version.outputs.version }}
+            type=raw,value=latest
+            type=sha,prefix=sha,format=short
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./deploy/docker/Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+      - name: Deploy to AWS using CloudFormation
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          API_KEY: ${{ secrets.API_KEY }}
+          DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+          REDIS_PASSWORD: ${{ secrets.REDIS_PASSWORD }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          EXISTING_MONGODB_ENDPOINT: ${{ secrets.EXISTING_MONGODB_ENDPOINT }}
+          DOMAIN_NAME: ${{ secrets.DOMAIN_NAME }}
+          HOSTED_ZONE_ID: ${{ secrets.HOSTED_ZONE_ID }}
+          CERTIFICATE_ARN: ${{ secrets.CERTIFICATE_ARN }}
+          EXISTING_VPC_ID: ${{ secrets.EXISTING_VPC_ID }}
+          EXISTING_PUBLIC_SUBNET_1_ID: ${{ secrets.EXISTING_PUBLIC_SUBNET_1_ID }}
+          EXISTING_PUBLIC_SUBNET_2_ID: ${{ secrets.EXISTING_PUBLIC_SUBNET_2_ID }}
+          EXISTING_PUBLIC_SUBNET_3_ID: ${{ secrets.EXISTING_PUBLIC_SUBNET_3_ID }}
+          EXISTING_DB_SUBNET_1_ID: ${{ secrets.EXISTING_DB_SUBNET_1_ID }}
+          EXISTING_DB_SUBNET_2_ID: ${{ secrets.EXISTING_DB_SUBNET_2_ID }}
+          EXISTING_DB_SUBNET_3_ID: ${{ secrets.EXISTING_DB_SUBNET_3_ID }}
+          EXISTING_DATABASE_ENDPOINT: ${{ secrets.EXISTING_DATABASE_ENDPOINT }}
+          EXISTING_DATABASE_NAME: ${{ secrets.EXISTING_DATABASE_NAME }}
+          EXISTING_REDIS_ENDPOINT: ${{ secrets.EXISTING_REDIS_ENDPOINT }}
+          EXISTING_S3_BUCKET_NAME: ${{ secrets.EXISTING_S3_BUCKET_NAME }}
+          FRONTEND_CONTAINER_IMAGE: ${{ github.event.inputs.frontend_image || '' }}
+          FRONTEND_DEPLOY_VERSION: ${{ github.event.inputs.frontend_version || '' }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          FRONTEND_DOCKER_REGISTRY_USERNAME: ${{ github.event.inputs.frontend_docker_registry_username || secrets.FRONTEND_DOCKER_REGISTRY_USERNAME || secrets.NEXUS_USERNAME || '' }}
+          FRONTEND_DOCKER_REGISTRY_PASSWORD: ${{ github.event.inputs.frontend_docker_registry_password || secrets.FRONTEND_DOCKER_REGISTRY_PASSWORD || secrets.NEXUS_PASSWORD || '' }}
+          # Telemetry configuration (optional)
+          ARTHUR_BASE_URL: ${{ secrets.ARTHUR_BASE_URL || 'https://app.arthur.ai' }}
+          ARTHUR_API_KEY: ${{ secrets.ARTHUR_API_KEY || '' }}
+          ARTHUR_TASK_ID: ${{ secrets.ARTHUR_TASK_ID || '' }}
+          OTEL_SERVICE_NAME: ${{ secrets.OTEL_SERVICE_NAME || 'marketing-tool' }}
+          OTEL_DEPLOYMENT_ENVIRONMENT: ${{ secrets.OTEL_DEPLOYMENT_ENVIRONMENT || 'production' }}
+          OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT: ${{ secrets.OTEL_INSTRUMENTATION_GENAI_CAPTURE_MESSAGE_CONTENT || 'true' }}
+          # Keycloak configuration (optional - leave KEYCLOAK_SERVER_URL empty to disable)
+          KEYCLOAK_SERVER_URL: ${{ secrets.KEYCLOAK_SERVER_URL || '' }}
+          KEYCLOAK_REALM: ${{ secrets.KEYCLOAK_REALM || '' }}
+          KEYCLOAK_BACKEND_CLIENT_ID: ${{ secrets.KEYCLOAK_BACKEND_CLIENT_ID || '' }}
+          KEYCLOAK_BACKEND_CLIENT_SECRET: ${{ secrets.KEYCLOAK_BACKEND_CLIENT_SECRET || '' }}
+          KEYCLOAK_FRONTEND_CLIENT_ID: ${{ secrets.KEYCLOAK_FRONTEND_CLIENT_ID || '' }}
+          KEYCLOAK_FRONTEND_CLIENT_SECRET: ${{ secrets.KEYCLOAK_FRONTEND_CLIENT_SECRET || '' }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || '' }}
+          KEYCLOAK_VERIFY_SSL: ${{ secrets.KEYCLOAK_VERIFY_SSL || 'true' }}
+        run: |
+          cd deploy/aws
+          chmod +x deploy.sh
+
+          # Build deployment command with required infrastructure parameters
+          DEPLOY_CMD="./deploy.sh -e ${{ env.ENVIRONMENT }} -r ${{ env.AWS_REGION }} -n ${{ env.PROJECT_NAME }}"
+          DEPLOY_CMD="$DEPLOY_CMD -v ${{ steps.version.outputs.version }}"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-vpc-id $EXISTING_VPC_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-public-subnet-1 $EXISTING_PUBLIC_SUBNET_1_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-public-subnet-2 $EXISTING_PUBLIC_SUBNET_2_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-public-subnet-3 $EXISTING_PUBLIC_SUBNET_3_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-db-subnet-1 $EXISTING_DB_SUBNET_1_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-db-subnet-2 $EXISTING_DB_SUBNET_2_ID"
+          DEPLOY_CMD="$DEPLOY_CMD --existing-db-subnet-3 $EXISTING_DB_SUBNET_3_ID"
+
+          # Add optional parameters if they exist
+          if [ -n "$DOMAIN_NAME" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD -d $DOMAIN_NAME"
+          fi
+
+          if [ -n "$CERTIFICATE_ARN" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD -c $CERTIFICATE_ARN"
+          fi
+
+          if [ -n "$EXISTING_DATABASE_ENDPOINT" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --existing-database-endpoint $EXISTING_DATABASE_ENDPOINT"
+            # Use provided database name or default to marketing_tool_main
+            DB_NAME="${EXISTING_DATABASE_NAME:-marketing_tool_main}"
+            DEPLOY_CMD="$DEPLOY_CMD --existing-database-name $DB_NAME"
+          fi
+
+          if [ -n "$EXISTING_REDIS_ENDPOINT" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --existing-redis-endpoint $EXISTING_REDIS_ENDPOINT"
+          fi
+
+          if [ -n "$EXISTING_S3_BUCKET_NAME" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --existing-s3-bucket-name $EXISTING_S3_BUCKET_NAME"
+          fi
+
+          # Add frontend parameters
+          # If not explicitly provided, use Nexus registry with backend version
+          if [ -z "$FRONTEND_CONTAINER_IMAGE" ] || [ "$FRONTEND_CONTAINER_IMAGE" = "" ]; then
+            # Use Nexus registry, version will default to backend version in deploy.sh
+            FRONTEND_CONTAINER_IMAGE="docker.arthur.ai/arthur/marketing-tool/marketing-frontend"
+            FRONTEND_DEPLOY_VERSION=""
+          fi
+          DEPLOY_CMD="$DEPLOY_CMD --frontend-image $FRONTEND_CONTAINER_IMAGE"
+          if [ -n "$FRONTEND_DEPLOY_VERSION" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --frontend-version $FRONTEND_DEPLOY_VERSION"
+          fi
+          # Docker registry credentials are required when deploying frontend from Nexus
+          if [ -n "$FRONTEND_DOCKER_REGISTRY_USERNAME" ] && [ -n "$FRONTEND_DOCKER_REGISTRY_PASSWORD" ]; then
+            DEPLOY_CMD="$DEPLOY_CMD --frontend-docker-registry-username $FRONTEND_DOCKER_REGISTRY_USERNAME"
+            DEPLOY_CMD="$DEPLOY_CMD --frontend-docker-registry-password $FRONTEND_DOCKER_REGISTRY_PASSWORD"
+          fi
+
+          # Execute deployment
+          eval $DEPLOY_CMD
+
+      - name: Wait for ECS services to stabilize
+        run: |
+          # CloudFormation already updates ECS services when task definitions change
+          # We just need to wait for them to stabilize after the CloudFormation deployment
+          CLUSTER_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
+          SERVICE_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-service"
+          FRONTEND_SERVICE_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-frontend-service"
+
+          echo "Waiting for backend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $CLUSTER_NAME \
+            --services $SERVICE_NAME \
+            --region ${{ env.AWS_REGION }} || echo "Backend service check skipped (may not exist yet)"
+
+          echo "Waiting for frontend service to stabilize..."
+          aws ecs wait services-stable \
+            --cluster $CLUSTER_NAME \
+            --services $FRONTEND_SERVICE_NAME \
+            --region ${{ env.AWS_REGION }} || echo "Frontend service check skipped (may not exist yet)"
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "❌ Deployment failed!"
+          echo "Check the logs above for details."
+          echo "Stack: ${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}"
+          echo "Region: ${{ env.AWS_REGION }}"
+
+  migrate:
+    name: Run Better Auth DB Migration
+    runs-on: ubuntu-latest
+    needs: deploy
+    permissions:
+      id-token: write
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Run Better Auth database migration
+        run: |
+          CLUSTER_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}-cluster"
+          STACK_NAME="${{ env.PROJECT_NAME }}-${{ env.ENVIRONMENT }}"
+
+          TASK_DEF=$(aws ecs describe-services \
+            --cluster $CLUSTER_NAME \
+            --services "${STACK_NAME}-frontend-service" \
+            --query 'services[0].taskDefinition' \
+            --output text \
+            --region ${{ env.AWS_REGION }} 2>/dev/null || echo "")
+
+          if [ -z "$TASK_DEF" ] || [ "$TASK_DEF" = "None" ]; then
+            echo "⚠️  Frontend service not found, skipping migration"
+            exit 0
+          fi
+
+          NETWORK_CONFIG=$(aws ecs describe-services \
+            --cluster $CLUSTER_NAME \
+            --services "${STACK_NAME}-frontend-service" \
+            --query 'services[0].networkConfiguration' \
+            --output json \
+            --region ${{ env.AWS_REGION }})
+
+          echo "Running Better Auth migration as one-off ECS task..."
+
+          # Run migration via Node.js directly — the CLI cannot find auth.ts in the
+          # production standalone image (no source files). pg is bundled in node_modules.
+          MIGRATION_SCRIPT='const {Pool}=require("pg");const p=new Pool({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});const stmts=[`CREATE TABLE IF NOT EXISTS "user"(id TEXT PRIMARY KEY NOT NULL,name TEXT NOT NULL,email TEXT NOT NULL UNIQUE,"emailVerified" BOOLEAN NOT NULL DEFAULT FALSE,image TEXT,"createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`,`CREATE TABLE IF NOT EXISTS session(id TEXT PRIMARY KEY NOT NULL,"expiresAt" TIMESTAMPTZ NOT NULL,token TEXT NOT NULL UNIQUE,"createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"ipAddress" TEXT,"userAgent" TEXT,"userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE)`,`CREATE INDEX IF NOT EXISTS session_userId_idx ON session("userId")`,`CREATE TABLE IF NOT EXISTS account(id TEXT PRIMARY KEY NOT NULL,"accountId" TEXT NOT NULL,"providerId" TEXT NOT NULL,"userId" TEXT NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,"accessToken" TEXT,"refreshToken" TEXT,"idToken" TEXT,"accessTokenExpiresAt" TIMESTAMPTZ,"refreshTokenExpiresAt" TIMESTAMPTZ,scope TEXT,password TEXT,"createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`,`CREATE INDEX IF NOT EXISTS account_userId_idx ON account("userId")`,`CREATE TABLE IF NOT EXISTS verification(id TEXT PRIMARY KEY NOT NULL,identifier TEXT NOT NULL,value TEXT NOT NULL,"expiresAt" TIMESTAMPTZ NOT NULL,"createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,"updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP)`,`CREATE INDEX IF NOT EXISTS verification_identifier_idx ON verification(identifier)`];(async()=>{const c=await p.connect();try{await c.query("BEGIN");for(const s of stmts){await c.query(s);}await c.query("COMMIT");console.log("Migration done");}catch(e){try{await c.query("ROLLBACK");}catch{}console.error(e.message);process.exit(1);}finally{c.release();await p.end();}})();'
+
+          OVERRIDES=$(jq -n --arg script "$MIGRATION_SCRIPT" '{"containerOverrides":[{"name":"marketing-frontend","command":["node","-e",$script],"environment":[{"name":"NODE_TLS_REJECT_UNAUTHORIZED","value":"0"}]}]}')
+
+          TASK_ARN=$(aws ecs run-task \
+            --cluster $CLUSTER_NAME \
+            --task-definition "$TASK_DEF" \
+            --launch-type FARGATE \
+            --network-configuration "$NETWORK_CONFIG" \
+            --overrides "$OVERRIDES" \
+            --query 'tasks[0].taskArn' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          echo "Migration task: $TASK_ARN"
+
+          aws ecs wait tasks-stopped \
+            --cluster $CLUSTER_NAME \
+            --tasks "$TASK_ARN" \
+            --region ${{ env.AWS_REGION }}
+
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster $CLUSTER_NAME \
+            --tasks "$TASK_ARN" \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text \
+            --region ${{ env.AWS_REGION }})
+
+          if [ "$EXIT_CODE" = "0" ]; then
+            echo "✅ Better Auth migration completed"
+          else
+            echo "⚠️  Migration exited with code $EXIT_CODE (tables may already exist — continuing)"
+          fi

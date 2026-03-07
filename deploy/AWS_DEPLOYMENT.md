@@ -41,7 +41,7 @@ export MONGODB_PASSWORD="your_mongodb_password_here"
 
 ```bash
 # Deploy to production
-./deploy.sh -e production -r us-east-1
+./deploy.sh -e production -r us-east-2
 
 # Deploy with custom domain
 ./deploy.sh -e production -d api.mycompany.com -c arn:aws:acm:us-east-1:123456789012:certificate/12345678-1234-1234-1234-123456789012
@@ -52,17 +52,17 @@ export MONGODB_PASSWORD="your_mongodb_password_here"
 
 ### 3. Build and Push Docker Image
 
-After deployment, build and push your Docker image:
+After deployment, build and push your Docker image. **Note**: The Dockerfile automatically downloads the UDPipe English model required for SEO keywords engine operations.
 
 ```bash
 # Get the ECR repository URI from the stack outputs
 ECR_URI=$(aws cloudformation describe-stacks --stack-name marketing-tool-production --query 'Stacks[0].Outputs[?OutputKey==`ECRRepositoryURI`].OutputValue' --output text)
 
-# Build the image
-docker build -t $ECR_URI:latest .
+# Build the image (includes UDPipe model download)
+docker build -t $ECR_URI:latest -f deploy/docker/Dockerfile .
 
 # Login to ECR
-aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin $ECR_URI
+aws ecr get-login-password --region us-east-2 | docker login --username AWS --password-stdin $ECR_URI
 
 # Push the image
 docker push $ECR_URI:latest
@@ -70,6 +70,8 @@ docker push $ECR_URI:latest
 # Update the ECS service
 aws ecs update-service --cluster marketing-tool-production-cluster --service marketing-tool-production-service --force-new-deployment
 ```
+
+**Important**: If you're rebuilding an existing image, make sure to use the updated Dockerfile that includes the UDPipe model download step. The model is automatically downloaded during the Docker build process.
 
 ## Manual Deployment
 
